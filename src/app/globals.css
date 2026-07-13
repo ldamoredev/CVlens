@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+  background: #0e1a2e;
+  color: #f8fafc;
+  font-family: system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+}
+
+main {
+  display: grid;
+  min-height: 100vh;
+  place-content: center;
+  padding: 2rem;
+  text-align: center;
+}
+
+h1 {
+  margin: 0;
+  color: #4e9be8;
+  font-size: clamp(2.5rem, 10vw, 5rem);
+}
+
+p {
+  max-width: 36rem;
+  color: #cbd5e1;
+}

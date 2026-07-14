@@ -5,8 +5,8 @@ auditable document-quality analysis. A model extracts structured, cited findings
 deterministic TypeScript code applies a documented rubric to calculate five dimension
 scores and one overall score.
 
-**Phases 0–6 are complete. Phase 7 has not started.** See `STATUS.md` before contributing
-and activate only the next eligible phase.
+**Phases 0–6 are complete. Phase 7 (tests, fixtures, and launch) is in progress.** See
+`STATUS.md` before contributing and activate only the next eligible phase.
 
 ## Architecture principle
 
@@ -26,6 +26,8 @@ The complete result hierarchy, evidence treatment, and deterministic recommendat
 rules are documented in [`docs/results-presentation.md`](docs/results-presentation.md).
 The request boundary, quotas, provider deadlines, security headers, safe metrics, and
 Railway configuration are documented in [`docs/hardening.md`](docs/hardening.md).
+The launch regression corpus, sub-15-second demo path, portfolio copy, LinkedIn draft, and
+the Railway deploy runbook are documented in [`docs/launch.md`](docs/launch.md).
 
 ## Interface themes
 
@@ -63,6 +65,8 @@ Copy `.env.example` to `.env.local`. The Anthropic key is server-only and must n
 a `NEXT_PUBLIC_` prefix. The pinned low-cost model can be overridden with
 `ANTHROPIC_MODEL`; changing it requires a reviewed-fixture quality decision. Production
 preview URLs remain disabled unless `CVLENS_ENABLE_PREVIEW_STATES=true` is set explicitly.
+Set `CVLENS_SITE_URL` to the public origin in production so OpenGraph/Twitter metadata and
+the OG image resolve to absolute URLs (defaults to `http://localhost:3000`).
 
 ## Railway deployment decision
 

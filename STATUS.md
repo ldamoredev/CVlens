@@ -7,10 +7,16 @@ phase marked `IN_PROGRESS`; do not begin the next phase automatically.
 
 ## Active phase
 
-**No phase is active. Phase 6 — Hardening is `COMPLETED`.**
+**No phase is active. Phase 7 — Tests, fixtures, and launch is `COMPLETED` (2026-07-14).**
 
-The next eligible phase is Phase 7. It must be activated explicitly before changing code;
-public deployment and launch work remain Phase 7 scope.
+The MVP release gate is met: the app is publicly deployed on Railway at
+<https://cvlens.up.railway.app>. The next eligible phase is Phase 8 (grounding against a job
+description). It must be activated explicitly before changing code. Do not begin Phase 8
+automatically.
+
+One production follow-up remains open (see the Phase 7 known debt): the `CVLENS_SITE_URL`
+service variable must be pointed at the current public domain so OpenGraph/Twitter tags and
+the OG image URL resolve to it instead of the initial generated domain.
 
 ## Roadmap
 
@@ -23,7 +29,7 @@ public deployment and launch work remain Phase 7 scope.
 | 4 | Real upload + example caching | COMPLETED | MVP day 2; completed 2026-07-13 |
 | 5 | Results, evidence, and recommendations | COMPLETED | MVP day 2; completed 2026-07-14 |
 | 6 | Hardening | COMPLETED | MVP day 2; completed 2026-07-14 |
-| 7 | Tests, fixtures, and launch | NOT_STARTED | MVP day 2; MVP release gate |
+| 7 | Tests, fixtures, and launch | COMPLETED | MVP day 2; completed 2026-07-14 |
 | 8 | Grounding against job description | NOT_STARTED | **HIGH — first post-MVP priority** |
 | 9 | Generate three CV versions | NOT_STARTED | Post-deploy; blocked until Phase 8 is complete |
 
@@ -631,9 +637,106 @@ Phase 5 was completed and its handoff was fulfilled by the Phase 6 implementatio
 - Phase 7 still owns at least five launch regression fixtures, the public Railway deploy,
   OG image, sub-15-second demo path, portfolio copy, and LinkedIn draft.
 
+## Phase 6 handoff — fulfilled
+
+Phase 6 was completed and its handoff was fulfilled by the Phase 7 implementation below.
+
+## Phase 7 work log
+
+### Files changed
+
+- Added the launch regression corpus in `src/data/regression-fixtures.ts` and
+  `src/data/regression-fixtures.test.ts`: five fictional, schema-valid fixtures, each paired
+  with the fictional source CV that backs its verbatim quotes. Reuses the three cached demo
+  extractions and adds two regression-only fixtures.
+- Added two fictional source CVs: `fixtures/cvs/lucia-fernandez-senior-es.md` (a second
+  Spanish CV, full coverage) and `fixtures/cvs/noor-hassan-sparse-en.md` (a low-quality
+  scan whose body is illegible).
+- Added the OG image at `src/app/opengraph-image.tsx` (1200×630 PNG via `next/og`, brand
+  tokens from the dark theme) and `src/app/twitter-image.tsx` reusing it.
+- Added OpenGraph/Twitter metadata and `metadataBase` in `src/app/layout.tsx`, driven by a
+  new `CVLENS_SITE_URL` environment variable (documented in `.env.example` and `README.md`).
+- Added `docs/launch.md`: the regression corpus table, sub-15-second demo path, portfolio
+  copy (ES/EN), a LinkedIn draft (ES/EN), and the Railway deploy runbook. Updated `README.md`
+  to reflect the active phase and link the launch document.
+
+### Commands and validation
+
+- `pnpm typecheck` — passed with strict TypeScript.
+- `pnpm lint` — passed with zero warnings.
+- `pnpm test` — passed: 23 files, 126 tests (was 108). The new corpus adds 18 tests covering
+  the complete, partial, and insufficient-information states across two Spanish and three
+  English fixtures, with every evidence quote verified verbatim against its source CV.
+- `pnpm build` — passed; `/`, `/api/analyze`, `/health`, `/opengraph-image`, and
+  `/twitter-image` compiled. Proxy middleware compiled.
+- Local production smoke — `/opengraph-image` returned a 1200×630 PNG; OG/Twitter meta tags
+  render with absolute URLs; `/health` returned safe aggregate metrics.
+- Manual browser check — the cached demo path (select fictional example → full audited
+  result) rendered Marina Rivas at overall 82/100, 82.3% coverage, cited evidence, and the
+  `reviewed fixture · no API` provenance badge, with no console warnings or errors.
+
+### Deterministic regression scores
+
+| Fixture | Language | State | Overall | Coverage |
+| --- | --- | --- | --- | --- |
+| `alex-kessler` | EN | complete | 71 | 100% |
+| `marina-rivas` | ES | partial | 82 | 82.3% |
+| `dayo-okafor` | EN | partial | 79 | 95% |
+| `lucia-fernandez` | ES | complete | 98 | 100% |
+| `noor-hassan` | EN | insufficient_information | — | 13.8% |
+
+### Railway deployment
+
+- Created Railway project `CVLens` (id `d239b036-ba9e-44ce-bc6a-974779260ba9`) and service
+  `cvlens-web` (id `3a19680b-fd03-44d0-a131-91a3b7bd3473`), one replica, no database.
+- Service variables set: `ANTHROPIC_API_KEY` (server-only), `ANTHROPIC_MODEL`
+  (`claude-haiku-4-5-20251001`), `CVLENS_ENABLE_PREVIEW_STATES=false`, and `CVLENS_SITE_URL`.
+- Deployed from the local working tree via Railpack (`railway.json`: `pnpm build` /
+  `pnpm start`, health check `/health`). Node 22.23.1 and pnpm 11.12.0 with a frozen
+  lockfile.
+- Public domain: <https://cvlens.up.railway.app>.
+- Post-deploy verification against the public domain: `/health` returned `status: ok` with
+  only aggregate metrics; two live analyses of a fictional CV image returned HTTP 200 with a
+  real Anthropic extraction plus the deterministic rubric result (both in the 15–30-second
+  bucket, incrementing only the aggregate success counter); `/opengraph-image` returned a
+  1200×630 PNG; the home response carried the nonce CSP, HSTS, frame denial, `nosniff`, and
+  no-referrer headers.
+
+### Decisions
+
+- The regression corpus is separate from the three bundled UI examples. It reuses the cached
+  extractions and adds two regression-only fixtures so the complete-in-Spanish and
+  insufficient-information paths are pinned without changing the three-example landing UI.
+- The sub-15-second demo path is the cached example flow (zero API latency), not live
+  analysis. Live analysis of a real document remains in the ~15–30-second range and is
+  documented as such in `docs/launch.md`.
+- The deploy uses the Railway MCP `deploy` (local tarball upload) rather than a
+  GitHub-connected trigger, so no push was required. `.env` and build artifacts are
+  git-ignored and excluded from the tarball; the API key lives only as a service variable.
+- Portfolio copy, the LinkedIn draft, and recommendation text remain deterministic,
+  document-editing material; no product invariant (probabilistic extraction, deterministic
+  scoring, no stored uploads, fixtures make no live call) was changed.
+
+### Known debt / blockers
+
+- No product blocker; the app is publicly live and a live analysis succeeds end to end.
+- `CVLENS_SITE_URL` still points at the initial generated domain
+  (`cvlens-web-production.up.railway.app`), while the active public domain is
+  `cvlens.up.railway.app`. Until the variable is updated to the current domain and the
+  service redeploys, `og:url` and the `og:image` URL reference the old domain. This is a
+  one-variable Railway change; it does not affect app functionality.
+- Railway variable changes only take effect on a deployment created after the change. A
+  variable set while a build is already in flight requires a fresh redeploy to be picked up.
+- The Phase 7 deploy was made from the local working tree; those changes are not yet
+  committed to Git. Commit and push were intentionally left to the maintainer.
+- Multi-replica scaling still requires a shared rate-limit store and a revised
+  privacy/architecture decision (carried from Phase 6).
+
 ## Current handoff
 
-Phase 6 is complete and validated. Activate only Phase 7 next. Preserve the hardened
-request boundary, one-replica/no-database architecture, safe metrics, CSP nonce path,
-privacy disclosure, extraction contract, deterministic rubric, and cached example path.
-Do not begin Phase 8 job-description grounding during that handoff.
+Phase 7 is complete and the MVP is publicly deployed and functional. Activate only Phase 8
+next (grounding against a job description). Preserve the extraction contract, deterministic
+rubric, cached example path, hardened request boundary, one-replica/no-database
+architecture, safe metrics, CSP nonce path, and privacy disclosure. Before further launch
+work, point `CVLENS_SITE_URL` at the current public domain so social metadata resolves
+correctly.

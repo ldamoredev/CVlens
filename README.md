@@ -5,7 +5,7 @@ auditable document-quality analysis. A model extracts structured, cited findings
 deterministic TypeScript code applies a documented rubric to calculate five dimension
 scores and one overall score.
 
-**Phases 0–2 are complete. Phase 3 has not started.** See `STATUS.md` before contributing
+**Phases 0–3 are complete. Phase 4 has not started.** See `STATUS.md` before contributing
 and activate only the next eligible phase.
 
 ## Architecture principle
@@ -18,6 +18,8 @@ reproducible scores. This boundary keeps the rubric testable and auditable.
 
 The versioned extraction fields, evidence invariants, language behavior, prompts, and
 single controlled reinspection are documented in [`docs/ai-contract.md`](docs/ai-contract.md).
+The fixed weights, outcome mapping, coverage states, and rounding formula are documented
+in [`docs/rubric.md`](docs/rubric.md).
 
 ## Interface themes
 

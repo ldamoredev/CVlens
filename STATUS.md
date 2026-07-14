@@ -7,9 +7,9 @@ phase marked `IN_PROGRESS`; do not begin the next phase automatically.
 
 ## Active phase
 
-**None. Phase 2 is complete; Phase 3 remains `NOT_STARTED`.**
+**None. Phase 3 is complete; Phase 4 remains `NOT_STARTED`.**
 
-The next agent must explicitly mark Phase 3 `IN_PROGRESS` before changing its code.
+The next agent must explicitly mark Phase 4 `IN_PROGRESS` before changing its code.
 
 ## Roadmap
 
@@ -18,7 +18,7 @@ The next agent must explicitly mark Phase 3 `IN_PROGRESS` before changing its co
 | 0 | Bootstrap | COMPLETED | MVP day 1; completed 2026-07-13 |
 | 1 | Visual foundation + examples | COMPLETED | Light-theme amendment completed 2026-07-13 |
 | 2 | Anthropic extraction contract | COMPLETED | MVP day 1; completed 2026-07-13 |
-| 3 | Deterministic rubric engine | NOT_STARTED | MVP day 1; scope gate for phases 5–6 |
+| 3 | Deterministic rubric engine | COMPLETED | MVP day 1; completed 2026-07-13 |
 | 4 | Real upload + example caching | NOT_STARTED | MVP day 2 |
 | 5 | Results, evidence, and recommendations | NOT_STARTED | MVP day 2 |
 | 6 | Hardening | NOT_STARTED | MVP day 2 |
@@ -317,8 +317,72 @@ adding model-generated scores. Do not begin Phase 3 during that handoff.
   multimodal document blocks, reviewed fixtures, and buffer cleanup. The pinned default
   model must be changed only if those fixtures demonstrate a quality need.
 
+## Phase 3 work log
+
+### Files changed
+
+- Added the pure deterministic engine under `src/domain/rubric/rubric.ts`; its only import
+  is a type-only reference to the Phase 2 extraction contract.
+- Defined fixed overall weights: impact 30%, clarity 20%, ATS structure 25%, consistency
+  15%, and domain signal 10%.
+- Defined fixed local weights for all 18 criteria and the categorical mapping `meets=100`,
+  `mixed=50`, `needs_improvement=0`, and `not_evaluable=null`.
+- Added auditable criterion results containing outcome, fixed points, local weight, and
+  weighted contribution.
+- Implemented dimension and overall coverage, complete/partial/insufficient states, a 50%
+  publication threshold for the overall number, and one final round-half-up operation.
+- Added exhaustive tests covering configuration totals, every outcome, all 18 individual
+  not-evaluable paths, legitimate zero, partial renormalization, insufficient information,
+  the exact coverage threshold, rounding, audit contributions, determinism, immutability,
+  and independence from evidence wording/count.
+- Added `docs/rubric.md` with field weights, rationale, formulas, examples, state rules,
+  rounding, invariants, and phase boundaries; updated `README.md`.
+
+### Commands and validation
+
+- `pnpm typecheck` — passed with strict TypeScript.
+- `pnpm lint` — passed with zero warnings.
+- `pnpm test` — passed: 9 files, 61 tests.
+- `pnpm build` — passed; production bundle compiled and both app routes generated.
+- Pure-domain import audit — passed; the rubric contains no Anthropic, Next.js, React,
+  environment, clock, randomness, or network dependency.
+- Isolated manual execution — compiled the rubric to `/tmp` and verified a complete fixture
+  returns overall `100`, coverage `100%`, and five complete dimensions.
+- Partial manual execution — a not-evaluable 35%-weight impact criterion returned impact
+  score `100` at `65%` coverage and overall score `100` at `89.5%` coverage, proving that
+  unavailable evidence is excluded rather than silently scored as zero.
+- `git diff --check` — passed.
+- `.env` ignore check — passed; the configured API key file remains ignored and was never
+  read, printed, or used during this local-only phase.
+
+### Decisions
+
+- Overall scoring uses effective global criterion weights, not rounded dimension scores.
+  This avoids double rounding and prevents a sparse partial dimension from receiving its
+  entire dimension weight.
+- `not_evaluable` is excluded from numerator and denominator. A dimension with some
+  available criteria is renormalized and marked partial; one with none has a `null` score.
+- The overall score is withheld below 50% global coverage. At or above 50% it is published
+  as partial; only 100% coverage is complete.
+- Scores use non-negative round-half-up (`floor(x + 0.5)`) exactly once after each full
+  weighted calculation. Global coverage is displayed to one decimal place.
+- Text, language, evidence count, invocation time, and environment never affect scoring.
+  Only validated categorical outcomes and rubric version do.
+
+### Known debt / blockers
+
+- No blockers.
+- Phase 4 must connect validated Anthropic extraction to `scoreExtraction`, create and
+  hand-review cached example findings, and confirm the current model against those fixtures.
+- The Phase 1 UI still displays explicit mock scores. Real rubric results should replace
+  them only when the upload/example pipeline is integrated; presentation completion remains
+  owned by Phase 5.
+- Any future weight, outcome, threshold, or rounding change requires a documented rubric
+  version bump and regression review.
+
 ## Current handoff
 
-Phase 2 is complete and validated. Activate only Phase 3 next. Consume the exported
-`CvExtraction` contract in a pure TypeScript rubric module; do not import Anthropic,
-Next.js, or React, and do not begin the real upload/provider integration.
+Phase 3 is complete and validated. Activate only Phase 4 next. Use the server-only API key
+without reading or logging it, validate files before provider calls, pass only Zod-validated
+extractions into `scoreExtraction`, clear upload buffers promptly, and keep examples cached
+with no live demo calls. Do not begin the Phase 5 result redesign during that handoff.

@@ -7,16 +7,16 @@ phase marked `IN_PROGRESS`; do not begin the next phase automatically.
 
 ## Active phase
 
-**No phase is active. Phase 7 — Tests, fixtures, and launch is `COMPLETED` (2026-07-14).**
+**No phase is active. Phase 8 — SEO review and improvement is `COMPLETED` (2026-07-14).**
 
-The MVP release gate is met: the app is publicly deployed on Railway at
-<https://cvlens.up.railway.app>. The next eligible phase is Phase 8 (grounding against a job
-description). It must be activated explicitly before changing code. Do not begin Phase 8
+The SEO release gate is met and the updated app is publicly deployed on Railway at
+<https://cvlens.up.railway.app>. The next eligible phase is Phase 9 (grounding against job
+description). It must be activated explicitly before changing code; do not begin it
 automatically.
 
-One production follow-up remains open (see the Phase 7 known debt): the `CVLENS_SITE_URL`
-service variable must be pointed at the current public domain so OpenGraph/Twitter tags and
-the OG image URL resolve to it instead of the initial generated domain.
+The Phase 7 `CVLENS_SITE_URL` follow-up is resolved: the variable now points at
+<https://cvlens.up.railway.app>, and the production `og:url` and `og:image` tags resolve to
+that domain.
 
 ## Roadmap
 
@@ -30,8 +30,9 @@ the OG image URL resolve to it instead of the initial generated domain.
 | 5 | Results, evidence, and recommendations | COMPLETED | MVP day 2; completed 2026-07-14 |
 | 6 | Hardening | COMPLETED | MVP day 2; completed 2026-07-14 |
 | 7 | Tests, fixtures, and launch | COMPLETED | MVP day 2; completed 2026-07-14 |
-| 8 | Grounding against job description | NOT_STARTED | **HIGH — first post-MVP priority** |
-| 9 | Generate three CV versions | NOT_STARTED | Post-deploy; blocked until Phase 8 is complete |
+| 8 | SEO review and improvement | COMPLETED | Launch polish; completed 2026-07-14 |
+| 9 | Grounding against job description | NOT_STARTED | HIGH post-MVP priority |
+| 10 | Generate three CV versions | NOT_STARTED | Post-deploy; blocked until Phase 9 is complete |
 
 ## Phase acceptance criteria
 
@@ -78,13 +79,32 @@ the OG image URL resolve to it instead of the initial generated domain.
 - Schema and rubric coverage, at least five regression fixtures (including Spanish),
   public deploy, OG image, sub-15-second demo path, portfolio copy, and LinkedIn draft.
 
-### Phase 8 — Grounding against job description
+### Phase 8 — SEO review and improvement
+
+- Favicon and app icons (`favicon.ico`, `icon`, `apple-icon`) via the App Router metadata
+  file conventions; verify they serve in production (the deploy currently returns 404 for
+  `/favicon.ico`).
+- Complete document metadata: canonical URL, `robots` directives, author/keywords where
+  appropriate, and correct `lang`; confirm the OpenGraph/Twitter tags resolve against the
+  production domain (`CVLENS_SITE_URL`, already set to <https://cvlens.up.railway.app>).
+- `robots.txt` and `sitemap.xml` via `src/app/robots.ts` and `src/app/sitemap.ts`.
+- Optional JSON-LD structured data (e.g. `SoftwareApplication`/`WebApplication`) that stays
+  compatible with the existing CSP nonce path: no inline script without the request nonce and
+  no external requests.
+- Semantic-HTML, heading-hierarchy, landmark, and image-alt review for crawlability and
+  accessibility, in both the dark and light themes.
+- A documented SEO audit (e.g. Lighthouse) with before/after results, recorded in
+  `docs/seo.md`.
+- No analytics, tracking, external fonts/scripts, or other privacy/CSP regressions. Preserve
+  all product invariants and the hardened request boundary.
+
+### Phase 9 — Grounding against job description
 
 - Optional bounded job-description input; cited requirement extraction and evidence-
   backed coverage states; deterministic coverage score; match recommendations that
   never invent experience; at least three hand-verified CV/job fixtures.
 
-### Phase 9 — Generate three CV versions
+### Phase 10 — Generate three CV versions
 
 - Three strategy-based variants, previews and documented download format, using only
   traceable source-CV content; entity-level anti-hallucination regression tests.
@@ -100,7 +120,7 @@ the OG image URL resolve to it instead of the initial generated domain.
 - Bundled examples are fictional, fixture-backed, deterministic, and make no live call.
 - Runtime target: Railway, one Node service, no database, in-memory rate limiting.
 
-## Deferred ideas — do not implement during phases 0–9
+## Deferred ideas — do not implement during phases 0–10
 
 - Compare versions of the same CV over time.
 - Cover-letter analysis.
@@ -540,7 +560,8 @@ Phase 4 was completed and its handoff was fulfilled by the Phase 5 implementatio
 
 - No blockers.
 - Recommendations are intentionally bounded document-editing templates. Job-specific
-  grounding and more contextual match guidance remain owned by Phase 8.
+  grounding and more contextual match guidance remain owned by the job-description grounding
+  phase (renumbered to Phase 9 after SEO was inserted as Phase 8).
 - Phase 6 still owns rate limiting, request/body hardening, final timeout and provider error
   policy, security headers, the production privacy notice, non-sensitive metrics,
   `/health`, and Railway readiness.
@@ -720,11 +741,10 @@ Phase 6 was completed and its handoff was fulfilled by the Phase 7 implementatio
 ### Known debt / blockers
 
 - No product blocker; the app is publicly live and a live analysis succeeds end to end.
-- `CVLENS_SITE_URL` still points at the initial generated domain
-  (`cvlens-web-production.up.railway.app`), while the active public domain is
-  `cvlens.up.railway.app`. Until the variable is updated to the current domain and the
-  service redeploys, `og:url` and the `og:image` URL reference the old domain. This is a
-  one-variable Railway change; it does not affect app functionality.
+- `CVLENS_SITE_URL` was initially left at the generated domain; it has since been updated to
+  the active public domain `https://cvlens.up.railway.app`, and production `og:url` /
+  `og:image` now resolve there. Resolved 2026-07-14. Verifying and completing SEO metadata is
+  now Phase 8 scope.
 - Railway variable changes only take effect on a deployment created after the change. A
   variable set while a build is already in flight requires a fresh redeploy to be picked up.
 - The Phase 7 deploy was made from the local working tree; those changes are not yet
@@ -732,11 +752,100 @@ Phase 6 was completed and its handoff was fulfilled by the Phase 7 implementatio
 - Multi-replica scaling still requires a shared rate-limit store and a revised
   privacy/architecture decision (carried from Phase 6).
 
+## Phase 7 handoff — fulfilled
+
+Phase 7 is complete and the MVP is publicly deployed and functional at
+<https://cvlens.up.railway.app>. Activate only Phase 8 next (SEO review and improvement);
+job-description grounding is now Phase 9. Preserve the extraction contract, deterministic
+rubric, cached example path, hardened request boundary, one-replica/no-database
+architecture, safe metrics, CSP nonce path, and privacy disclosure. Any SEO structured-data
+script must carry the request nonce, and no analytics, tracking, or external assets may be
+introduced.
+
+## Phase 8 work log
+
+### Files changed
+
+- Added App Router metadata-file icons: a multiresolution `src/app/favicon.ico`, 512 px
+  `src/app/icon.png`, and 180 px `src/app/apple-icon.png`; added
+  `scripts/generate-app-icons.mjs` so all local assets are reproducible from brand tokens.
+- Extended `src/app/layout.tsx` with canonical, robots, author/publisher, keyword, and
+  category metadata while preserving the Phase 7 OpenGraph/Twitter configuration and
+  production `metadataBase`.
+- Added nonce-bearing `WebApplication` JSON-LD. The script uses the same request nonce as
+  the theme initializer and makes no external request.
+- Added `src/app/robots.ts` and `src/app/sitemap.ts`, backed by a shared validated origin
+  resolver in `src/lib/site-url.ts` and focused tests for URL validation and route output.
+- Improved semantic structure in `src/components/cvlens-app.tsx`: visible `h1` headings in
+  loading/result states, `h2` example and dimension sections, preserved `h3` findings,
+  labeled regions, and synchronized the HTML `lang` with the ES/EN interface/CV language.
+- Raised the dark/light low-emphasis ink tokens to remove the Lighthouse contrast failures
+  without changing the brand hierarchy or theme architecture.
+- Added `docs/seo.md` with the production Lighthouse baseline/result, HTTP checks, semantic
+  review, CSP verification, and remaining audit note; updated `README.md`.
+
+### Commands and validation
+
+- `pnpm typecheck` — passed with TypeScript strict mode.
+- `pnpm lint` — passed with zero warnings.
+- `pnpm test` — passed: 25 files, 131 tests.
+- `pnpm build` — passed with Next.js 16.2.10/webpack; `/`, `/api/analyze`, `/health`, both
+  social images, both PNG app icons, `/robots.txt`, and `/sitemap.xml` compiled. The
+  metadata-file favicon is served separately by the App Router convention.
+- `node scripts/generate-app-icons.mjs` — passed; `file` identified a three-size
+  16/32/48 px ICO, a 512×512 RGB PNG, and a 180×180 RGB PNG.
+- Local production smoke — `/favicon.ico`, `/icon.png`, `/apple-icon.png`, `/robots.txt`,
+  and `/sitemap.xml` all returned HTTP 200 with their expected MIME types; the home included
+  canonical/robots/author/keyword metadata, icon links, and nonce-bearing JSON-LD.
+- Lighthouse 13.4.0 public before/after — performance 78→99, accessibility 96→100,
+  Best Practices 92→96, SEO 100→100. The favicon console error went 1→0, contrast failures
+  11→0, and the canonical/robots audits changed from not-applicable to passing. Performance
+  is a lab snapshot and is not treated as a deterministic product guarantee.
+- Railway CLI preflight — authenticated workspace confirmed; CLI updated from 5.12.1 to
+  5.26.1 after the older version could not scope deployment-history reads by project.
+- Railway deploy — deployment `5172302e-4194-4894-b48e-c9ee46c60675` reached terminal
+  `SUCCESS`; image digest `sha256:c8998d6afd8734677a02a95c949c221c1b76a7e65af640a9d1c8a70897f4e658`.
+- Public endpoint check — favicon, app icon, Apple icon, robots, sitemap, OpenGraph image,
+  and Twitter image all returned HTTP 200. Canonical, author, OG/Twitter, JSON-LD, robots,
+  and sitemap URLs resolve to `https://cvlens.up.railway.app`.
+- Production nonce/header check — all 14 rendered script tags carried the request nonce
+  declared by CSP. The home retained HSTS, `X-Frame-Options: DENY`, `nosniff`, no external
+  origins, and the existing self-only CSP boundary.
+- In-app browser review — at 390 px and 1440 px, dark/light landing and result views had no
+  horizontal overflow; ES→EN updated `<html lang>` and the interface; the cached Alex
+  example rendered the complete 71/100 audited result with one `h1`, five `h2` dimensions,
+  and `h3` findings. No browser-console warnings or errors were recorded.
+- `git diff --check` — passed.
+
+### Decisions
+
+- `CVLENS_SITE_URL` is the single origin authority for canonical, social, JSON-LD, robots,
+  and sitemap URLs. It is normalized to an HTTP(S) origin and rejects embedded credentials.
+- Only the public home is indexable. Robots excludes `/api/` and `/health`, and the sitemap
+  contains only `/`; neither endpoint is a content page.
+- Metadata icons use App Router file conventions without duplicate manual icon metadata.
+- JSON-LD is static product description only. It carries the per-request nonce, adds no
+  tracker or remote asset, and does not describe scores, users, or CV contents.
+- The HTML language follows the currently rendered interface/result language. It remains
+  independent from browser or operating-system settings when analysis output is shown.
+- No extraction contract, deterministic rubric, cached example, upload/request boundary,
+  API secret handling, privacy copy, persistence behavior, or server architecture changed.
+
+### Known debt / blockers
+
+- No Phase 8 blocker.
+- Lighthouse still reports one generic Chrome “Content security policy” inspector issue
+  with no affected URL or actionable detail, leaving Best Practices at 96. Direct nonce
+  inspection passes, the browser console is clean, and security headers remain intact; the
+  issue is documented in `docs/seo.md` rather than weakening CSP.
+- Lighthouse performance values are lab measurements and may vary with network/host load;
+  no performance guarantee is inferred from the 78→99 sample.
+- The production deployment again came from the local working tree and remains uncommitted;
+  commit/push are intentionally left to the maintainer.
+
 ## Current handoff
 
-Phase 7 is complete and the MVP is publicly deployed and functional. Activate only Phase 8
-next (grounding against a job description). Preserve the extraction contract, deterministic
-rubric, cached example path, hardened request boundary, one-replica/no-database
-architecture, safe metrics, CSP nonce path, and privacy disclosure. Before further launch
-work, point `CVLENS_SITE_URL` at the current public domain so social metadata resolves
-correctly.
+Phase 8 is complete and deployed. Activate only Phase 9 next (grounding against job
+description); do not begin it automatically. Preserve the complete SEO metadata and icon
+routes, CSP nonce path, extraction/scoring boundary, cached examples, hardened request
+boundary, one-replica/no-database architecture, privacy disclosure, and no-tracking policy.

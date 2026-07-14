@@ -5,8 +5,8 @@ auditable document-quality analysis. A model extracts structured, cited findings
 deterministic TypeScript code applies a documented rubric to calculate five dimension
 scores and one overall score.
 
-**Phases 0–6 are complete. Phase 7 (tests, fixtures, and launch) is in progress.** See
-`STATUS.md` before contributing and activate only the next eligible phase.
+**Phases 0–8 are complete; the MVP is live at <https://cvlens.up.railway.app>. Phase 9 is
+not active.** See `STATUS.md` before contributing and activate only the next eligible phase.
 
 ## Architecture principle
 
@@ -28,6 +28,8 @@ The request boundary, quotas, provider deadlines, security headers, safe metrics
 Railway configuration are documented in [`docs/hardening.md`](docs/hardening.md).
 The launch regression corpus, sub-15-second demo path, portfolio copy, LinkedIn draft, and
 the Railway deploy runbook are documented in [`docs/launch.md`](docs/launch.md).
+The production metadata, crawl routes, CSP-compatible structured data, and Lighthouse
+before/after audit are documented in [`docs/seo.md`](docs/seo.md).
 
 ## Interface themes
 
@@ -65,8 +67,9 @@ Copy `.env.example` to `.env.local`. The Anthropic key is server-only and must n
 a `NEXT_PUBLIC_` prefix. The pinned low-cost model can be overridden with
 `ANTHROPIC_MODEL`; changing it requires a reviewed-fixture quality decision. Production
 preview URLs remain disabled unless `CVLENS_ENABLE_PREVIEW_STATES=true` is set explicitly.
-Set `CVLENS_SITE_URL` to the public origin in production so OpenGraph/Twitter metadata and
-the OG image resolve to absolute URLs (defaults to `http://localhost:3000`).
+Set `CVLENS_SITE_URL` to the public origin in production so canonical, robots, sitemap,
+structured-data, OpenGraph/Twitter metadata, and image URLs resolve correctly (defaults to
+`http://localhost:3000`).
 
 ## Railway deployment decision
 
@@ -82,7 +85,8 @@ Railway is the fixed deployment target for the MVP:
 - `railway.json` declares the Railpack build, start command, one replica, health check,
   and bounded restart policy.
 
-The actual Railway project and public deployment belong to Phase 7.
+The Railway project and public deployment were created in Phase 7 and remain the production
+target for subsequent phases.
 
 ## Privacy and safety
 

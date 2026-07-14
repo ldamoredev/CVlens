@@ -13,7 +13,7 @@
   --danger: #e86a6a;
   --ink-high: #e8eef6;
   --ink-mid: #9bb0c9;
-  --ink-low: #64788f;
+  --ink-low: #8297af;
   --focus-ring: rgba(78, 155, 232, 0.48);
   --selection: rgba(78, 155, 232, 0.35);
   --font-display: "Space Grotesk Variable", "Space Grotesk", sans-serif;
@@ -33,7 +33,7 @@ html[data-theme="light"] {
   --danger: #c4362f;
   --ink-high: #0e1a2e;
   --ink-mid: #3e526b;
-  --ink-low: #647a96;
+  --ink-low: #536b87;
   --focus-ring: rgba(46, 122, 203, 0.35);
   --selection: rgba(78, 155, 232, 0.24);
 }
@@ -454,6 +454,7 @@ html[data-theme="light"] .theme-action-dark {
   color: var(--ink-low);
   font-family: var(--font-mono);
   font-size: 11px;
+  font-weight: 400;
   text-align: center;
 }
 

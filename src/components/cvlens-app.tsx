@@ -366,6 +366,10 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
   }, []);
 
   useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
+
+  useEffect(() => {
     if (viewState !== "loading" || initialPreviewState === "loading") return;
 
     const verifyTimer = window.setTimeout(() => setProgressStep(1), 650);
@@ -534,7 +538,10 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
           {documentFlow ? (
             <span className="document-language">{t.cvLanguage} · {language.toUpperCase()}</span>
           ) : (
-            <div className="language-switch" aria-label="Idioma de la interfaz">
+            <div
+              className="language-switch"
+              aria-label={language === "es" ? "Idioma de la interfaz" : "Interface language"}
+            >
               {(["es", "en"] as const).map((option) => (
                 <button
                   type="button"
@@ -616,15 +623,15 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
               </div>
             )}
 
-            <div className="examples-section">
-              <p className="examples-lead">{t.examplesLead}</p>
+            <section className="examples-section" aria-labelledby="examples-title">
+              <h2 className="examples-lead" id="examples-title">{t.examplesLead}</h2>
               <div className="examples-grid">
                 {fictionalExamples.map((example) => (
                   <ExampleCard key={example.id} example={example} onSelect={selectExample} />
                 ))}
               </div>
               <p className="fiction-note">{t.fictionNote}</p>
-            </div>
+            </section>
           </section>
         )}
       </main>
@@ -729,7 +736,7 @@ function LoadingView({
 
   return (
     <section className="loading-view" aria-labelledby="loading-title">
-      <p className="eyebrow" id="loading-title">{t.analyzing}</p>
+      <h1 className="eyebrow" id="loading-title">{t.analyzing}</h1>
       <p className="loading-document">{documentName} · {language === "es" ? "documento ficticio o local" : "fictional or local document"}</p>
       <ol className="progress-list">
         {t.steps.map((step, index) => {
@@ -771,7 +778,7 @@ function ResultView({
   return (
     <section className="result-layout" aria-labelledby="result-title">
       <aside className={`score-summary is-${analysis.status}`}>
-        <p className="score-label" id="result-title">{t.overall}</p>
+        <h1 className="score-label" id="result-title">{t.overall}</h1>
         <ScoreMeter score={analysis.overallScore} />
         <span className={`result-status is-${analysis.status}`}>
           <i aria-hidden="true" />{analysis.status === "success" ? t.complete : t.partial}
@@ -849,6 +856,7 @@ function DimensionCard({
   onToggle: () => void;
 }) {
   const t = copy[language];
+  const headingId = useId();
   const evaluable = dimension.score !== null;
   const evaluatedFindings = dimension.findings.filter(
     (finding) => finding.outcome !== "not_evaluable",
@@ -862,7 +870,8 @@ function DimensionCard({
         : t.positive;
 
   return (
-    <article className={`dimension-card is-${dimension.effect}`}>
+    <article className={`dimension-card is-${dimension.effect}`} aria-labelledby={headingId}>
+      <h2 className="visually-hidden" id={headingId}>{dimension.name}</h2>
       <button type="button" className="dimension-trigger" onClick={onToggle} aria-expanded={open}>
         <span className="dimension-heading">
           <span>

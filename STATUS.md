@@ -7,16 +7,16 @@ phase marked `IN_PROGRESS`; do not begin the next phase automatically.
 
 ## Active phase
 
-**None. Phase 0 is complete; Phase 1 remains `NOT_STARTED`.**
+**None. Phase 1 is complete; Phase 2 remains `NOT_STARTED`.**
 
-The next agent must explicitly mark Phase 1 `IN_PROGRESS` before changing its code.
+The next agent must explicitly mark Phase 2 `IN_PROGRESS` before changing its code.
 
 ## Roadmap
 
 | Phase | Name | Status | Priority / gate |
 | --- | --- | --- | --- |
 | 0 | Bootstrap | COMPLETED | MVP day 1; completed 2026-07-13 |
-| 1 | Visual foundation + examples | NOT_STARTED | MVP day 1 |
+| 1 | Visual foundation + examples | COMPLETED | MVP day 1; completed 2026-07-13 |
 | 2 | Anthropic extraction contract | NOT_STARTED | MVP day 1 |
 | 3 | Deterministic rubric engine | NOT_STARTED | MVP day 1; scope gate for phases 5–6 |
 | 4 | Real upload + example caching | NOT_STARTED | MVP day 2 |
@@ -100,6 +100,16 @@ The next agent must explicitly mark Phase 1 `IN_PROGRESS` before changing its co
 - CVs longer than two pages and long-form academic curricula vitae.
 - Export the analysis report as a shareable PDF.
 
+## Approved UI/UX reference
+
+The Claude Design reference supplied on 2026-07-13 is preserved unchanged under
+`docs/design-reference/`. Its HTML and runtime have matching SHA-256 hashes with the
+source files, and usage notes are recorded in that directory's `README.md`.
+
+Implement it incrementally: Phase 1 owns the visual foundation and mock states, Phase 5
+owns the complete evidence-backed result, and Phase 6 owns production hardening states.
+The reference does not activate a phase or override the roadmap and product invariants.
+
 ## Phase 0 work log
 
 ### Files changed
@@ -145,8 +155,66 @@ The next agent must explicitly mark Phase 1 `IN_PROGRESS` before changing its co
 - Phase 2 must select and document the default Haiku-tier `ANTHROPIC_MODEL` based on the
   extraction contract; `.env.example` keeps it configurable and blank for now.
 
-## Handoff
+## Phase 0 handoff — fulfilled
 
-Phase 0 is complete and fully validated. The next agent should read `AGENTS.md` and this
-file, inspect the current diff, mark only Phase 1 `IN_PROGRESS`, and implement its visual
-foundation with mock data. Do not begin Phase 2 during that handoff.
+Phase 0 was completed and its handoff was fulfilled by the Phase 1 implementation below.
+
+## Phase 1 work log
+
+### Files changed
+
+- Replaced the technical placeholder with the responsive CVLens product shell under
+  `src/app` and `src/components/cvlens-app.tsx`.
+- Implemented local Space Grotesk and JetBrains Mono assets, the approved color tokens,
+  dotted-to-solid motif, focus states, reduced motion, and 390/768/1440 layouts.
+- Added upload selection/drag UI with client-side presentation validation for PDF/JPG/PNG
+  and an 8 MB limit. Files are not read, persisted, logged, or sent in this phase.
+- Added all required states: idle, dragging, selected, loading, success, partial,
+  insufficient information, invalid format, file too large, technical error, and rate
+  limited. They can be reviewed with `/?state=<state_name>`.
+- Added three detailed fictional CV sources under `fixtures/cvs/` and corresponding mock
+  presentation results under `src/data/fictional-examples.ts`.
+- Added complete/partial mock score layouts, five expandable dimension rows, explicit
+  non-evaluable treatment, cited fictional evidence, and ES/EN presentation variants.
+- Added pure state/file-validation and fictional-fixture tests.
+
+### Commands and validation
+
+- `pnpm typecheck` — passed.
+- `pnpm lint` — passed with zero warnings; the immutable generated Design Canvas runtime
+  is excluded while application and test code remain linted.
+- `pnpm test` — passed: 3 files, 11 tests.
+- `pnpm build` — passed with the App Router root route generated successfully.
+- Browser desktop check at 1440 px — passed for idle and complete-result layouts.
+- Browser tablet/mobile check at 390 px — passed with no horizontal overflow; all sampled
+  interactive targets are at least 44 px.
+- Manual interaction — example selection, language switch, loading transition, partial
+  result, accordion expansion, and explicit non-evaluable evidence passed.
+- Visual-state audit — all 11 preview states render; no browser console warnings/errors.
+
+### Decisions
+
+- Phase 1 scores are explicitly labeled mock and live only in presentation fixtures. They
+  are not model output and must be replaced by the deterministic Phase 3 rubric result.
+- Selecting a bundled example runs a short client-only progress demo and never calls a
+  model. Selecting a local file validates only its metadata; the file is not read or sent.
+- Local-file analysis ends in the honest `insufficient` placeholder until Phase 4 wires
+  the real upload pipeline, avoiding fabricated findings about a user document.
+- Example output language follows each fictional CV. The ES/EN toggle controls only the
+  idle/error interface, never overrides an analyzed example's document language.
+- The approved reference is implemented incrementally: Phase 5 still owns production
+  result data/details, and Phase 6 owns real rate limiting and hardened failures.
+
+### Known debt / blockers
+
+- No blockers.
+- The Markdown CV sources intentionally preserve problematic content/layout cues; Phase 4
+  must turn them into reviewed PDF/image demo assets and cache verified extractions.
+- Query-string state previews are a Phase 1 QA aid. Phase 6 should decide whether to keep
+  them outside production or gate them behind development configuration.
+
+## Phase 1 handoff
+
+Phase 1 is complete and validated. The next agent should activate only Phase 2, define the
+Zod findings contract and prompts, and preserve the existing presentation fixtures without
+adding model-generated scores. Do not begin Phase 3 during that handoff.

@@ -5,7 +5,7 @@ auditable document-quality analysis. A model extracts structured, cited findings
 deterministic TypeScript code applies a documented rubric to calculate five dimension
 scores and one overall score.
 
-**Phase 0 (bootstrap) is complete. Phase 1 has not started.** See `STATUS.md` before
+**Phases 0 and 1 are complete. Phase 2 has not started.** See `STATUS.md` before
 contributing and activate only the next eligible phase.
 
 ## Architecture principle

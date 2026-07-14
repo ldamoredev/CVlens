@@ -14,6 +14,7 @@ export type {
   DocumentLanguage,
   FindingEffect,
   PresentationDimension,
+  PresentationFinding,
   ResultStatus,
 } from "./analysis-presentation";
 

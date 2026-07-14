@@ -289,8 +289,7 @@ html[data-theme="light"] .theme-action-dark {
 .selected-kicker,
 .status-key,
 .detail-label,
-.mock-badge,
-.evaluated-count {
+.source-badge {
   margin: 0;
   color: var(--accent);
   font-family: var(--font-mono);
@@ -857,7 +856,7 @@ html[data-theme="light"] .theme-action-dark {
   background: transparent;
 }
 
-.mock-badge {
+.source-badge {
   display: block;
   margin-top: 13px;
   color: var(--accent);
@@ -872,10 +871,31 @@ html[data-theme="light"] .theme-action-dark {
   line-height: 1.6;
 }
 
-.evaluated-count {
-  margin-top: 14px;
+.result-audit-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.result-audit-stats span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  padding: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 7px;
   color: var(--ink-low);
-  font-size: 9px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.result-audit-stats strong {
+  color: var(--ink-high);
+  font-size: 13px;
 }
 
 .full-width {
@@ -994,6 +1014,14 @@ html[data-theme="light"] .theme-action-dark {
   white-space: nowrap;
 }
 
+.dimension-heading > small {
+  color: var(--ink-low);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .is-positive .dimension-heading em {
   border-color: rgba(62, 207, 142, 0.34);
   color: var(--verify);
@@ -1055,13 +1083,150 @@ html[data-theme="light"] .theme-action-dark {
 }
 
 .dimension-detail {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
   margin: 0 19px;
   padding: 18px 0 20px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   animation: detail-enter 180ms ease both;
+}
+
+.finding-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.finding-card {
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-left: 3px solid var(--warning);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.012);
+}
+
+.finding-card.is-positive {
+  border-left-color: var(--verify);
+}
+
+.finding-card.is-not_evaluable {
+  border-left-style: dashed;
+  border-left-color: var(--ink-low);
+}
+
+.finding-card-header,
+.finding-card-header > div,
+.finding-audit {
+  display: flex;
+  align-items: center;
+}
+
+.finding-card-header {
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.finding-card-header > div {
+  min-width: 0;
+  gap: 10px;
+}
+
+.finding-index {
+  flex: none;
+  color: var(--ink-low);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+.finding-card h3 {
+  margin: 0;
+  color: var(--ink-high);
+  font-size: 13px;
+  font-weight: 610;
+}
+
+.finding-outcome {
+  flex: none;
+  padding: 3px 7px;
+  border: 1px solid rgba(232, 147, 78, 0.34);
+  border-radius: 4px;
+  color: var(--warning);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.is-positive > .finding-card-header .finding-outcome {
+  border-color: rgba(62, 207, 142, 0.34);
+  color: var(--verify);
+}
+
+.is-not_evaluable > .finding-card-header .finding-outcome {
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--ink-low);
+}
+
+.finding-audit {
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.finding-audit span {
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: rgba(78, 155, 232, 0.07);
+  color: var(--ink-low);
+  font-family: var(--font-mono);
+  font-size: 8px;
+}
+
+.finding-audit strong {
+  color: var(--ink-mid);
+  font-weight: 600;
+}
+
+.finding-interpretation,
+.finding-evidence-list,
+.unavailable-evidence,
+.finding-recommendation {
+  margin-top: 15px;
+}
+
+.finding-evidence-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.evidence-block cite {
+  display: block;
+  margin-top: 7px;
+  color: var(--ink-low);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-style: normal;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.unavailable-evidence {
+  padding: 10px 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+}
+
+.unavailable-evidence p:last-child {
+  color: var(--ink-low);
+}
+
+.finding-recommendation {
+  padding: 12px 14px;
+  border-radius: 7px;
+  background: rgba(78, 155, 232, 0.055);
 }
 
 .dimension-detail p {
@@ -1198,6 +1363,30 @@ html[data-theme="light"] .dimension-card {
   border-color: #d3deec;
   background: #ffffff;
   box-shadow: 0 1px 3px rgba(14, 26, 46, 0.06);
+}
+
+html[data-theme="light"] .finding-card {
+  border-color: #dce5f0;
+  border-left-color: var(--warning);
+  background: #fbfcfe;
+}
+
+html[data-theme="light"] .finding-card.is-positive {
+  border-left-color: var(--verify);
+}
+
+html[data-theme="light"] .finding-card.is-not_evaluable {
+  border-left-color: var(--ink-low);
+}
+
+html[data-theme="light"] .result-audit-stats span,
+html[data-theme="light"] .unavailable-evidence {
+  border-color: #dce5f0;
+}
+
+html[data-theme="light"] .finding-audit span,
+html[data-theme="light"] .finding-recommendation {
+  background: rgba(46, 122, 203, 0.055);
 }
 
 html[data-theme="light"] .example-card:hover,
@@ -1574,14 +1763,14 @@ html[data-theme="light"] .evidence-block {
     font-size: 9px;
   }
 
-  .mock-badge {
+  .source-badge {
     grid-column: 2;
     margin-top: 0;
     text-align: left;
   }
 
   .score-note,
-  .evaluated-count,
+  .result-audit-stats,
   .score-summary .full-width {
     grid-column: 1 / -1;
   }

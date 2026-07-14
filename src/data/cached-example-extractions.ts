@@ -112,9 +112,11 @@ const alexKesslerExtraction: CvExtraction = {
         "## Skills",
         "Section heading",
       ),
-      completeContactInformation: unavailable(
-        "Contact values are present in the source header but are deliberately excluded from analysis output.",
-        "Completeness cannot be evidenced without reproducing private contact values.",
+      completeContactInformation: finding(
+        "meets",
+        "The header explicitly labels the email and GitHub contact categories without requiring their values in the report.",
+        "Contact categories: email · GitHub",
+        "Header — privacy-safe labels",
       ),
       appropriateLength: finding(
         "meets",

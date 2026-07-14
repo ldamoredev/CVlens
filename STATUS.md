@@ -1,15 +1,16 @@
 # CVLens — Project status
 
-Last updated: 2026-07-13
+Last updated: 2026-07-14
 
 `STATUS.md` is the source of truth for phase ownership and handoffs. Work only on the
 phase marked `IN_PROGRESS`; do not begin the next phase automatically.
 
 ## Active phase
 
-**No phase is active. Phase 4 was completed on 2026-07-13.**
+**No phase is active. Phase 6 — Hardening is `COMPLETED`.**
 
-The next eligible phase is Phase 5. It must be activated explicitly before changing code.
+The next eligible phase is Phase 7. It must be activated explicitly before changing code;
+public deployment and launch work remain Phase 7 scope.
 
 ## Roadmap
 
@@ -20,8 +21,8 @@ The next eligible phase is Phase 5. It must be activated explicitly before chang
 | 2 | Anthropic extraction contract | COMPLETED | MVP day 1; completed 2026-07-13 |
 | 3 | Deterministic rubric engine | COMPLETED | MVP day 1; completed 2026-07-13 |
 | 4 | Real upload + example caching | COMPLETED | MVP day 2; completed 2026-07-13 |
-| 5 | Results, evidence, and recommendations | NOT_STARTED | MVP day 2 |
-| 6 | Hardening | NOT_STARTED | MVP day 2 |
+| 5 | Results, evidence, and recommendations | COMPLETED | MVP day 2; completed 2026-07-14 |
+| 6 | Hardening | COMPLETED | MVP day 2; completed 2026-07-14 |
 | 7 | Tests, fixtures, and launch | NOT_STARTED | MVP day 2; MVP release gate |
 | 8 | Grounding against job description | NOT_STARTED | **HIGH — first post-MVP priority** |
 | 9 | Generate three CV versions | NOT_STARTED | Post-deploy; blocked until Phase 8 is complete |
@@ -465,9 +466,174 @@ Phase 3 was completed and its handoff was fulfilled by the Phase 4 implementatio
   request-local and become garbage-collectable after the request; mutable upload buffers
   are explicitly zeroed.
 
+## Phase 4 handoff — fulfilled
+
+Phase 4 was completed and its handoff was fulfilled by the Phase 5 implementation below.
+
+## Phase 5 work log
+
+### Files changed
+
+- Replaced the Phase 4 representative-finding bridge in
+  `src/data/analysis-presentation.ts` with a complete presentation model for all 18 stable
+  rubric criteria across the five dimensions.
+- Added localized criterion names, outcome labels, dimension and global coverage, fixed
+  categorical points, local weights, every validated evidence quote and location, and
+  explicit non-evaluable reasons.
+- Added deterministic ES/EN editing guidance for every criterion. Recommendations are
+  selected from criterion/outcome templates and explicitly avoid invented results,
+  metrics, dates, activities, role types, and skills; no second model call is made.
+- Rebuilt the result UI in `src/components/cvlens-app.tsx` and `src/app/globals.css` with a
+  sticky score/provenance summary, five expandable audit cards, nested finding cards,
+  multiple citations, calculation context, and dotted uncertainty treatment.
+- Corrected live-upload presentation metadata so labels follow the detected CV language,
+  not the interface language that happened to be active before analysis.
+- Added a privacy-safe contact-category label to the fictional Alex fixture and reviewed
+  extraction, enabling a genuine complete demo state without exposing contact values.
+- Expanded presentation and example regression tests and added
+  `docs/results-presentation.md`; updated `README.md` for the completed phase boundary.
+
+### Commands and validation
+
+- `pnpm typecheck` — passed with strict TypeScript.
+- `pnpm lint` — passed with zero warnings.
+- `pnpm test` — passed: 15 files, 91 tests.
+- `pnpm build` — passed; the root page and dynamic `/api/analyze` route compiled.
+- `git diff --check` — passed.
+- Production smoke check — `pnpm start --hostname 127.0.0.1 --port 3105` served the final
+  build; `/?state=success` contained `Analysis complete`, `100%`, and
+  `reviewed fixture · no API`, then the server was stopped.
+- Cached Spanish flow — Marina Rivas rendered score 82 with 82.3% evidence coverage;
+  expanding ATS showed all five criteria, five recommendations, and one explicit
+  non-evaluable reason with no fabricated citation.
+- English result audit — rendered all five dimensions and the three Impact findings with
+  criterion weights, fixed points, verbatim evidence, locations, and safe guidance.
+- Responsive browser audit — 1440, 768, and 390 px passed with no horizontal overflow;
+  sampled interactive targets remained at least 44 px at tablet and mobile widths.
+- Dark/light visual review — both themes preserved hierarchy, readable evidence blocks,
+  source provenance, and the dotted-to-solid motif. Browser console had no warnings or
+  errors.
+
+### Decisions
+
+- The result presents every criterion in rubric order rather than selecting one finding
+  per dimension. This makes positive, negative, mixed, and unavailable evidence auditable.
+- Recommendation text is deterministic presentation logic, not model output. The cited
+  evidence remains adjacent to each action so the user can distinguish source facts from
+  editing guidance.
+- A criterion displays its fixed points and local dimension weight, while the existing
+  rubric remains the only numeric authority. No UI code recalculates or changes weights.
+- `not_evaluable` displays its validated reason, an empty/dotted evidence treatment, and
+  “excluded from calculation”; it is never rendered as zero.
+- Only one dimension expands at a time to keep long 18-criterion reports scannable and
+  suitable for desktop portfolio capture without turning the layout into a table.
+- The cached complete demo uses only the verbatim safe label
+  `Contact categories: email · GitHub`; actual contact values remain rejected everywhere.
+
+### Known debt / blockers
+
+- No blockers.
+- Recommendations are intentionally bounded document-editing templates. Job-specific
+  grounding and more contextual match guidance remain owned by Phase 8.
+- Phase 6 still owns rate limiting, request/body hardening, final timeout and provider error
+  policy, security headers, the production privacy notice, non-sensitive metrics,
+  `/health`, and Railway readiness.
+- Exporting or sharing the report remains a deferred idea and was not introduced.
+
+## Phase 5 handoff — fulfilled
+
+Phase 5 was completed and its handoff was fulfilled by the Phase 6 implementation below.
+
+## Phase 6 work log
+
+### Files changed
+
+- Added a bounded fixed-window limiter under `src/server/security/`: three attempts per
+  source address per ten minutes, process-salted address hashes, a 10,000-bucket cap,
+  `Retry-After`, and aggregate rate headers. Raw addresses are never stored or exposed.
+- Hardened `POST /api/analyze` before body parsing: same-origin Fetch Metadata checks,
+  mandatory bounded multipart `Content-Length`, explicit malformed-body handling,
+  no-store responses, and stable public error codes.
+- Reduced Anthropic's attempt timeout to 60 seconds, added a shared 75-second deadline
+  across the initial extraction and optional reinspection, propagated request aborts,
+  kept SDK retries disabled, and classified provider failures without returning provider
+  response bodies or messages. The route maximum is 90 seconds.
+- Added in-memory aggregate outcome/duration metrics and `GET /health`. The endpoint
+  exposes no CV content, filename, MIME type, contact detail, address, key, or model value.
+- Added a per-request nonce CSP in `src/proxy.ts`, nonce propagation to the theme script,
+  MIME/referrer/frame/capability/cross-origin headers, production HSTS, and a webpack
+  production build required by the current App Router nonce path.
+- Disabled `?state=` QA previews in production unless the server-only
+  `CVLENS_ENABLE_PREVIEW_STATES=true` flag is explicitly set.
+- Replaced the ambiguous storage claim with accurate ES/EN disclosure that CVLens sends
+  uploaded CVs to Anthropic and deletes its temporary copy after processing.
+- Added `railway.json` with Railpack build/start commands, one replica, `/health`, and a
+  bounded restart-on-failure policy. No Railway project was created or deployed.
+- Added `docs/hardening.md`, updated `.env.example` and `README.md`, and added focused
+  coverage for request policy, quota windows/memory bounds, error classification/client
+  mapping, metrics, CSP, preview gating, and provider timing constants.
+
+### Commands and validation
+
+- `pnpm typecheck` — passed with strict TypeScript. An intermediate run caught the new
+  shared `AppState` type before export; the type was centralized and the final run passed.
+- `pnpm lint` — passed with zero warnings.
+- `pnpm test` — passed: 22 files, 108 tests.
+- `pnpm build` — passed with Next.js 16.2.10 using webpack; `/`, `/_not-found`,
+  `/api/analyze`, `/health`, and Proxy compiled as dynamic production routes.
+- `git diff --check` — passed.
+- `railway.json` JSON parse — passed; the installed Railway CLI help was checked against
+  the committed config-as-code workflow without linking or mutating a project.
+- Production header check — `/` returned the nonce CSP, `nosniff`, no-referrer, frame
+  denial, capability restrictions, same-origin policies, HSTS, and no-store rendering.
+- Production preview/privacy check — `/?state=rate_limited` rendered the idle flow when
+  the QA flag was unset, and the page named Anthropic plus CVLens's temporary-copy policy.
+- Request/error check — a Markdown upload was rejected as `invalid_format`; JSON requests
+  were rejected as `invalid_request`; the fourth attempt from one test address returned
+  `429 rate_limited` with `Retry-After: 600`. Every response was `no-store`.
+- Metrics check — `/health` reported exactly the five test requests as three invalid
+  requests, one invalid upload, and one rate-limited request, with no sensitive fields.
+- Live fictional CV check — a generated `/tmp` image containing only fictional Spanish
+  CV data was sent once through the configured Anthropic path. It returned HTTP 200,
+  detected `es`, produced the deterministic rubric result, completed inside the
+  15–30-second bucket, and incremented only the aggregate success counter. Temporary test
+  files were deleted and the API key was neither read nor printed.
+- Browser interaction — cached Spanish selection reached the 82-point partial result,
+  theme switching worked under CSP, and the browser console had no warnings or errors.
+  At 390 and 1440 px there was no horizontal overflow and visible controls remained at
+  least 44 px high.
+
+### Decisions
+
+- The MVP quota is intentionally local to one long-lived Node process. Address keys are
+  opaque and ephemeral; a restart resets quota state rather than introducing a database.
+- Railway stays at one replica so the local quota is coherent. Multi-replica deployment
+  requires a later documented decision and a shared limiter.
+- Missing or unbounded request lengths are rejected rather than buffered optimistically.
+  This is stricter than generic HTTP uploads and is deliberate for the public CV endpoint.
+- Provider quota, authentication, transport, timeout, and unknown failures have distinct
+  internal categories but only safe CVLens codes cross the public boundary.
+- Metrics are public-health aggregates, not analytics. No dimensions that could identify
+  a document or user are collected.
+- `style-src 'unsafe-inline'` remains narrowly necessary for bounded React meter widths;
+  scripts use a nonce and `strict-dynamic` without production `unsafe-eval`.
+- The Railway file is readiness configuration only. Creating infrastructure and exposing
+  a public URL would cross into Phase 7 and was not done.
+
+### Known debt / blockers
+
+- No Phase 6 blocker.
+- The in-memory limiter resets on process restart and depends on Railway's trusted
+  forwarding headers. Horizontal scaling requires a shared rate-limit store and a revised
+  privacy/architecture decision.
+- CSP inline style removal would require replacing dynamic meter width attributes with a
+  finite class/token system; it is not necessary for the current script threat boundary.
+- Phase 7 still owns at least five launch regression fixtures, the public Railway deploy,
+  OG image, sub-15-second demo path, portfolio copy, and LinkedIn draft.
+
 ## Current handoff
 
-Phase 4 is complete and validated. Activate only Phase 5 next. Build the full expandable
-results, evidence, and actionable recommendation presentation from the existing validated
-extraction and rubric outputs; do not change scoring weights or introduce hardening work
-owned by Phase 6.
+Phase 6 is complete and validated. Activate only Phase 7 next. Preserve the hardened
+request boundary, one-replica/no-database architecture, safe metrics, CSP nonce path,
+privacy disclosure, extraction contract, deterministic rubric, and cached example path.
+Do not begin Phase 8 job-description grounding during that handoff.

@@ -15,20 +15,20 @@ import {
   type AnalysisPresentation,
   type DocumentLanguage,
   type FictionalExample,
-  type FindingEffect,
   type PresentationDimension,
+  type PresentationFinding,
 } from "@/data/fictional-examples";
 import { createAnalysisPresentation } from "@/data/analysis-presentation";
 import { cvExtractionSchema } from "@/domain/extraction/contract";
 import { scoreExtraction } from "@/domain/rubric/rubric";
+import { apiErrorState } from "@/lib/api-error-state";
 import {
+  type AppState,
   formatFileSize,
   type PreviewState,
   validateUpload,
 } from "@/lib/presentation-state";
 import { THEME_STORAGE_KEY, type Theme } from "@/lib/theme";
-
-type AppState = Exclude<PreviewState, "dragging">;
 
 interface CVLensAppProps {
   initialPreviewState: PreviewState;
@@ -57,7 +57,8 @@ const copy = {
     dropActive: "Soltá el archivo para revisarlo",
     fileMeta: "PDF · JPG · PNG — máx. 8 MB — 1–2 páginas",
     selectFile: "Seleccionar archivo",
-    privacy: "Tu CV no se almacena. Se analiza y se descarta.",
+    privacy:
+      "CVLens no guarda tu CV. Lo envía a Anthropic para analizarlo y elimina su copia temporal al terminar.",
     examplesLead: "o probá un CV ficticio — sin costo",
     fictionNote:
       "Personas y documentos completamente ficticios. Resultados cacheados y revisados, sin llamadas al modelo.",
@@ -65,7 +66,8 @@ const copy = {
     remove: "Quitar archivo",
     analyze: "Analizar CV",
     analyzing: "Analizando",
-    loadingNote: "El documento se mantiene sólo en esta sesión y se descarta al terminar.",
+    loadingNote:
+      "El documento se envía a Anthropic sólo para este análisis; CVLens elimina su copia temporal al terminar.",
     steps: [
       "Inspeccionando la estructura del documento",
       "Verificando la evidencia citada",
@@ -82,23 +84,32 @@ const copy = {
     cachedBadge: "fixture verificado · sin API",
     liveBadge: "análisis real · no almacenado",
     evaluated: "dimensiones evaluadas",
+    coverage: "cobertura de evidencia",
+    criteria: "criterios auditados",
+    criterionWeight: "peso en la dimensión",
+    scoreEffect: "resultado del criterio",
+    excludedEffect: "excluido del cálculo",
+    citedAt: "ubicación",
+    unavailableEvidence: "Sin cita: este criterio no pudo verificarse.",
+    dimensionCoverage: "cobertura",
     another: "Analizar otro CV",
     finding: "Hallazgo · interpretación",
     evidence: "Evidencia · cita textual del CV",
     recommendation: "Recomendación accionable",
     positive: "+ positivo",
     negative: "− a mejorar",
+    partialDimension: "◐ parcial",
     notEvaluable: "◌ no evaluable",
     expand: "Mostrar evidencia",
     collapse: "Ocultar evidencia",
     footerPrinciple:
       "Extracción probabilística, puntaje determinístico — el modelo halla evidencia; TypeScript calcula.",
-    footerPrivacy: "Tu CV no se almacena. Se analiza y se descarta.",
+    footerPrivacy: "CVLens no guarda tu CV; Anthropic lo procesa para realizar el análisis.",
     fictional: "persona ficticia",
   },
   en: {
     tagline: "Verifiable CV analysis",
-    navPrivacy: "never stored",
+    navPrivacy: "CVLens doesn't store",
     cvLanguage: "CV language",
     changeTheme: "Change theme",
     useDarkTheme: "Use dark theme",
@@ -111,14 +122,16 @@ const copy = {
     dropActive: "Drop the file to review it",
     fileMeta: "PDF · JPG · PNG — max. 8 MB — 1–2 pages",
     selectFile: "Select file",
-    privacy: "Your CV is never stored. It is analyzed and discarded.",
+    privacy:
+      "CVLens does not store your CV. It sends it to Anthropic for analysis and deletes its temporary copy when finished.",
     examplesLead: "or try a fictional CV — free",
     fictionNote: "Fully fictional people and documents. Reviewed cached results, no model calls.",
     ready: "ready to analyze",
     remove: "Remove file",
     analyze: "Analyze CV",
     analyzing: "Analyzing",
-    loadingNote: "The document stays in this session only and is discarded when finished.",
+    loadingNote:
+      "The document is sent to Anthropic only for this analysis; CVLens deletes its temporary copy when finished.",
     steps: [
       "Inspecting document structure",
       "Verifying cited evidence",
@@ -135,18 +148,27 @@ const copy = {
     cachedBadge: "reviewed fixture · no API",
     liveBadge: "live analysis · not stored",
     evaluated: "dimensions evaluated",
+    coverage: "evidence coverage",
+    criteria: "audited criteria",
+    criterionWeight: "dimension weight",
+    scoreEffect: "criterion result",
+    excludedEffect: "excluded from calculation",
+    citedAt: "location",
+    unavailableEvidence: "No quote: this criterion could not be verified.",
+    dimensionCoverage: "coverage",
     another: "Analyze another CV",
     finding: "Finding · interpretation",
     evidence: "Evidence · verbatim CV quote",
     recommendation: "Actionable recommendation",
     positive: "+ positive",
     negative: "− needs work",
+    partialDimension: "◐ partial",
     notEvaluable: "◌ not evaluable",
     expand: "Show evidence",
     collapse: "Hide evidence",
     footerPrinciple:
       "Probabilistic extraction, deterministic scoring — the model finds evidence; TypeScript computes.",
-    footerPrivacy: "Your CV is never stored. It is analyzed and discarded.",
+    footerPrivacy: "CVLens does not store your CV; Anthropic processes it for the analysis.",
     fictional: "fictional person",
   },
 } as const;
@@ -185,7 +207,7 @@ const errorCopy = {
     rate_limited: {
       icon: "◷",
       title: "Límite temporal alcanzado",
-      message: "Probá de nuevo en aproximadamente 2 minutos. No hace falta volver a preparar el CV.",
+      message: "Esperá unos minutos y probá de nuevo. No hace falta volver a preparar el CV.",
       action: "Volver al inicio",
       tone: "warning",
     },
@@ -223,7 +245,7 @@ const errorCopy = {
     rate_limited: {
       icon: "◷",
       title: "Temporary limit reached",
-      message: "Try again in about 2 minutes. You do not need to prepare the CV again.",
+      message: "Wait a few minutes and try again. You do not need to prepare the CV again.",
       action: "Back to start",
       tone: "warning",
     },
@@ -302,21 +324,6 @@ function initialExampleFor(state: PreviewState): FictionalExample | null {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function apiErrorState(value: unknown): AppState {
-  if (!isRecord(value) || !isRecord(value.error)) return "technical_error";
-
-  const code = value.error.code;
-  if (
-    code === "file_too_large" ||
-    code === "insufficient" ||
-    code === "invalid_format"
-  ) {
-    return code;
-  }
-
-  return "technical_error";
 }
 
 export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
@@ -464,12 +471,16 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
       }
 
       const rubric = scoreExtraction(parsed.data);
+      const resultLanguage: DocumentLanguage =
+        parsed.data.document.language === "undetermined"
+          ? language
+          : parsed.data.document.language;
       const result = createAnalysisPresentation(parsed.data, rubric, {
         documentName: upload.name,
-        fallbackLanguage: language,
-        level: language === "es" ? "CV propio" : "Your CV",
+        fallbackLanguage: resultLanguage,
+        level: resultLanguage === "es" ? "CV propio" : "Your CV",
         name: upload.name,
-        role: language === "es" ? "Documento subido" : "Uploaded document",
+        role: resultLanguage === "es" ? "Documento subido" : "Uploaded document",
         source: "live_upload",
       });
 
@@ -765,9 +776,12 @@ function ResultView({
         <span className={`result-status is-${analysis.status}`}>
           <i aria-hidden="true" />{analysis.status === "success" ? t.complete : t.partial}
         </span>
-        <span className="mock-badge">{sourceBadge}</span>
+        <span className="source-badge">{sourceBadge}</span>
         <p className="score-note">{t.scoreNote}</p>
-        <p className="evaluated-count">{evaluated}/5 {t.evaluated}</p>
+        <div className="result-audit-stats">
+          <span><strong>{evaluated}/5</strong>{t.evaluated}</span>
+          <span><strong>{analysis.coveragePercent}%</strong>{t.coverage}</span>
+        </div>
         <button className="secondary-button full-width" type="button" onClick={onReset}>{t.another}</button>
       </aside>
 
@@ -823,13 +837,6 @@ function ScoreMeter({ score }: { score: number }) {
   );
 }
 
-function effectLabel(effect: FindingEffect, language: DocumentLanguage) {
-  const t = copy[language];
-  if (effect === "positive") return t.positive;
-  if (effect === "negative") return t.negative;
-  return t.notEvaluable;
-}
-
 function DimensionCard({
   dimension,
   language,
@@ -843,15 +850,31 @@ function DimensionCard({
 }) {
   const t = copy[language];
   const evaluable = dimension.score !== null;
+  const evaluatedFindings = dimension.findings.filter(
+    (finding) => finding.outcome !== "not_evaluable",
+  ).length;
+  const dimensionLabel = !evaluable
+    ? t.notEvaluable
+    : dimension.effect === "negative"
+      ? t.negative
+      : dimension.state === "partial"
+        ? t.partialDimension
+        : t.positive;
 
   return (
     <article className={`dimension-card is-${dimension.effect}`}>
       <button type="button" className="dimension-trigger" onClick={onToggle} aria-expanded={open}>
         <span className="dimension-heading">
-          <span><strong>{dimension.name}</strong><em>{effectLabel(dimension.effect, language)}</em></span>
+          <span>
+            <strong>{dimension.name}</strong>
+            <em>{dimensionLabel}</em>
+          </span>
           <span className={`meter-track${evaluable ? "" : " is-empty"}`}>
             {evaluable ? <i style={{ width: `${dimension.score}%` }} /> : null}
           </span>
+          <small>
+            {evaluatedFindings}/{dimension.findings.length} {t.criteria} · {dimension.coveragePercent}% {t.dimensionCoverage}
+          </small>
         </span>
         <span className="dimension-score">{dimension.score ?? "—"}</span>
         <span className="chevron" aria-hidden="true">{open ? "−" : "+"}</span>
@@ -859,20 +882,78 @@ function DimensionCard({
       </button>
       {open ? (
         <div className="dimension-detail">
-          <div>
-            <p className="detail-label">{t.finding}</p>
-            <p>{dimension.finding}</p>
-          </div>
-          <blockquote className={`evidence-block is-${dimension.effect}`}>
-            <p className="detail-label">{t.evidence}</p>
-            <p>{dimension.quote}</p>
-          </blockquote>
-          <div>
-            <p className="detail-label is-accent">{t.recommendation}</p>
-            <p>{dimension.recommendation}</p>
-          </div>
+          <ol className="finding-list">
+            {dimension.findings.map((finding, index) => (
+              <FindingCard
+                key={finding.id}
+                finding={finding}
+                language={language}
+                ordinal={index + 1}
+              />
+            ))}
+          </ol>
         </div>
       ) : null}
     </article>
+  );
+}
+
+function FindingCard({
+  finding,
+  language,
+  ordinal,
+}: {
+  finding: PresentationFinding;
+  language: DocumentLanguage;
+  ordinal: number;
+}) {
+  const t = copy[language];
+
+  return (
+    <li className={`finding-card is-${finding.effect}`}>
+      <div className="finding-card-header">
+        <div>
+          <span className="finding-index" aria-hidden="true">{String(ordinal).padStart(2, "0")}</span>
+          <h3>{finding.label}</h3>
+        </div>
+        <span className="finding-outcome">{finding.outcomeLabel}</span>
+      </div>
+
+      <div className="finding-audit">
+        <span>{t.criterionWeight} · <strong>{finding.weight}%</strong></span>
+        <span>
+          {finding.points === null
+            ? t.excludedEffect
+            : `${t.scoreEffect} · ${finding.points}/100`}
+        </span>
+      </div>
+
+      <div className="finding-interpretation">
+        <p className="detail-label">{t.finding}</p>
+        <p>{finding.explanation}</p>
+      </div>
+
+      {finding.evidence.length > 0 ? (
+        <div className="finding-evidence-list">
+          {finding.evidence.map((evidence, index) => (
+            <blockquote className={`evidence-block is-${finding.effect}`} key={`${evidence.location}-${index}`}>
+              <p className="detail-label">{t.evidence}</p>
+              <p>“{evidence.quote}”</p>
+              <cite>{t.citedAt} · {evidence.location}</cite>
+            </blockquote>
+          ))}
+        </div>
+      ) : (
+        <div className="unavailable-evidence">
+          <p className="detail-label">{t.evidence}</p>
+          <p>{finding.notEvaluableReason ?? t.unavailableEvidence}</p>
+        </div>
+      )}
+
+      <div className="finding-recommendation">
+        <p className="detail-label is-accent">{t.recommendation}</p>
+        <p>{finding.recommendation}</p>
+      </div>
+    </li>
   );
 }

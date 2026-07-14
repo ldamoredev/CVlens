@@ -18,6 +18,8 @@ export type PreviewState =
   | "success"
   | "technical_error";
 
+export type AppState = Exclude<PreviewState, "dragging">;
+
 export type UploadValidation =
   | { valid: true }
   | { valid: false; reason: "file_too_large" | "invalid_format" };

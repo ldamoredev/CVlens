@@ -4,60 +4,155 @@ import {
   type AnalysisApiError,
   type AnalysisApiErrorCode,
 } from "../../../domain/analysis/result";
-import { MAX_MULTIPART_BYTES } from "../../../domain/upload/policy";
 import {
   AnthropicConfigurationError,
   extractCvWithAnthropic,
 } from "../../../server/anthropic/analyze-document";
+import { AnthropicRequestError } from "../../../server/anthropic/provider-error";
 import { ExtractionValidationError } from "../../../server/anthropic/reinspection";
+import {
+  beginAnalysisMetric,
+  type AnalysisOutcome,
+} from "../../../server/observability/metrics";
+import {
+  consumeAnalysisRateLimit,
+  rateLimitHeaders,
+  type RateLimitDecision,
+} from "../../../server/security/rate-limit";
+import {
+  resolveClientAddress,
+  validateAnalyzeRequestHeaders,
+} from "../../../server/security/request-policy";
 import { runUploadPipeline } from "../../../server/upload/pipeline";
 import { UploadPreparationError } from "../../../server/upload/prepare-upload";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 90;
+
+function responseHeaders(
+  rateLimit: RateLimitDecision,
+  retryAfterSeconds?: number,
+): HeadersInit {
+  return {
+    "Cache-Control": "no-store",
+    ...rateLimitHeaders(rateLimit),
+    ...(retryAfterSeconds
+      ? { "Retry-After": String(retryAfterSeconds) }
+      : {}),
+  };
+}
 
 function errorResponse(
   code: AnalysisApiErrorCode,
   status: number,
+  rateLimit: RateLimitDecision,
+  retryAfterSeconds?: number,
 ): Response {
-  return Response.json({ error: { code } } satisfies AnalysisApiError, { status });
+  return Response.json(
+    { error: { code } } satisfies AnalysisApiError,
+    {
+      status,
+      headers: responseHeaders(rateLimit, retryAfterSeconds),
+    },
+  );
 }
 
 export async function POST(request: Request): Promise<Response> {
-  const contentLength = Number(request.headers.get("content-length"));
-  if (Number.isFinite(contentLength) && contentLength > MAX_MULTIPART_BYTES) {
-    return errorResponse("file_too_large", 413);
-  }
+  const metric = beginAnalysisMetric();
+  let outcome: AnalysisOutcome = "technical_error";
+  const rateLimit = consumeAnalysisRateLimit(resolveClientAddress(request.headers));
 
   try {
-    const formData = await request.formData();
+    if (!rateLimit.allowed) {
+      outcome = "rate_limited";
+      return errorResponse(
+        "rate_limited",
+        429,
+        rateLimit,
+        rateLimit.retryAfterSeconds,
+      );
+    }
+
+    const policy = validateAnalyzeRequestHeaders(request.headers);
+    if (!policy.valid) {
+      if (policy.reason === "request_too_large") {
+        outcome = "invalid_upload";
+        return errorResponse("file_too_large", 413, rateLimit);
+      }
+
+      outcome = "invalid_request";
+      const status = policy.reason === "missing_content_length"
+        ? 411
+        : policy.reason === "invalid_content_type"
+          ? 415
+          : policy.reason === "cross_site_request"
+            ? 403
+            : 400;
+      return errorResponse("invalid_request", status, rateLimit);
+    }
+
+    let formData: FormData;
+    try {
+      formData = await request.formData();
+    } catch {
+      outcome = "invalid_request";
+      return errorResponse("invalid_request", 400, rateLimit);
+    }
     const file = formData.get("file");
 
     if (!(file instanceof File)) {
-      return errorResponse("invalid_format", 400);
+      outcome = "invalid_upload";
+      return errorResponse("invalid_format", 400, rateLimit);
     }
 
-    const result = await runUploadPipeline(file, extractCvWithAnthropic);
+    const result = await runUploadPipeline(
+      file,
+      (document) => extractCvWithAnthropic(document, request.signal),
+    );
+    outcome = "success";
     return Response.json(result, {
       status: 200,
-      headers: { "Cache-Control": "no-store" },
+      headers: responseHeaders(rateLimit),
     });
   } catch (error) {
     if (error instanceof UploadPreparationError) {
+      outcome = "invalid_upload";
       if (error.code === "file_too_large") {
-        return errorResponse("file_too_large", 413);
+        return errorResponse("file_too_large", 413, rateLimit);
       }
-      return errorResponse("invalid_format", 415);
+      return errorResponse("invalid_format", 415, rateLimit);
     }
 
     if (error instanceof ExtractionValidationError) {
-      return errorResponse("insufficient", 422);
+      outcome = "insufficient";
+      return errorResponse("insufficient", 422, rateLimit);
     }
 
     if (error instanceof AnthropicConfigurationError) {
-      return errorResponse("technical_error", 503);
+      outcome = "technical_error";
+      return errorResponse("technical_error", 503, rateLimit);
     }
 
-    return errorResponse("technical_error", 502);
+    if (error instanceof AnthropicRequestError) {
+      if (error.reason === "timeout") {
+        outcome = "timeout";
+        return errorResponse("timeout", 504, rateLimit);
+      }
+
+      outcome = "provider_error";
+      if (error.reason === "connection") {
+        return errorResponse("provider_unavailable", 502, rateLimit);
+      }
+      if (error.reason === "rate_limited" || error.reason === "provider") {
+        return errorResponse("provider_busy", 503, rateLimit);
+      }
+      return errorResponse("technical_error", 503, rateLimit);
+    }
+
+    outcome = "technical_error";
+    return errorResponse("technical_error", 502, rateLimit);
+  } finally {
+    metric.finish(outcome);
   }
 }

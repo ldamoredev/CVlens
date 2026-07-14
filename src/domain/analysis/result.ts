@@ -19,6 +19,11 @@ export type AnalysisApiErrorCode =
   | "file_too_large"
   | "insufficient"
   | "invalid_format"
+  | "invalid_request"
+  | "provider_busy"
+  | "provider_unavailable"
+  | "rate_limited"
+  | "timeout"
   | "technical_error";
 
 export interface AnalysisApiError {

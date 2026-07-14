@@ -1,5 +1,7 @@
 # Alex Kessler
 
+Contact categories: email · GitHub
+
 Frontend Developer · alex.kessler@example.com · github.com/alex-kessler-example
 
 > Completely fictional CV created for the CVLens demo. No real person or personal data.

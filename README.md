@@ -5,7 +5,7 @@ auditable document-quality analysis. A model extracts structured, cited findings
 deterministic TypeScript code applies a documented rubric to calculate five dimension
 scores and one overall score.
 
-**Phases 0–4 are complete. Phase 5 has not started.** See `STATUS.md` before contributing
+**Phases 0–6 are complete. Phase 7 has not started.** See `STATUS.md` before contributing
 and activate only the next eligible phase.
 
 ## Architecture principle
@@ -22,6 +22,10 @@ The fixed weights, outcome mapping, coverage states, and rounding formula are do
 in [`docs/rubric.md`](docs/rubric.md).
 The upload boundary, image normalization, provider adapter, memory cleanup, and cached
 example path are documented in [`docs/upload-pipeline.md`](docs/upload-pipeline.md).
+The complete result hierarchy, evidence treatment, and deterministic recommendation
+rules are documented in [`docs/results-presentation.md`](docs/results-presentation.md).
+The request boundary, quotas, provider deadlines, security headers, safe metrics, and
+Railway configuration are documented in [`docs/hardening.md`](docs/hardening.md).
 
 ## Interface themes
 
@@ -57,7 +61,8 @@ pnpm build
 
 Copy `.env.example` to `.env.local`. The Anthropic key is server-only and must never use
 a `NEXT_PUBLIC_` prefix. The pinned low-cost model can be overridden with
-`ANTHROPIC_MODEL`; changing it requires a reviewed-fixture quality decision.
+`ANTHROPIC_MODEL`; changing it requires a reviewed-fixture quality decision. Production
+preview URLs remain disabled unless `CVLENS_ENABLE_PREVIEW_STATES=true` is set explicitly.
 
 ## Railway deployment decision
 
@@ -69,15 +74,20 @@ Railway is the fixed deployment target for the MVP:
 - the service reads `PORT` from Railway/Next.js and receives `ANTHROPIC_API_KEY` and
   `ANTHROPIC_MODEL` as service variables;
 - uploaded buffers remain ephemeral and must be discarded immediately after analysis;
-- a health endpoint will be introduced in Phase 6 before deployment.
+- Railway checks `GET /health`, which returns only uptime and aggregate analysis metrics;
+- `railway.json` declares the Railpack build, start command, one replica, health check,
+  and bounded restart policy.
 
-The actual Railway project and public deployment belong to Phases 6–7, not Phase 0.
+The actual Railway project and public deployment belong to Phase 7.
 
 ## Privacy and safety
 
-CVs contain personal data. The application must never persist uploads, log CV text or
-contact data, comment on protected attributes, or invent content. Bundled examples are
-fictional and served from reviewed fixtures without live model calls.
+CVs contain personal data. CVLens does not store uploads; the selected document is sent
+to Anthropic for the requested analysis and its request-local buffers are discarded when
+processing finishes. Application code must never log CV text, filenames, contact data,
+provider payloads, or raw source addresses, comment on protected attributes, or invent
+content. Bundled examples are fictional and served from reviewed fixtures without live
+model calls.
 
 ## Project coordination
 

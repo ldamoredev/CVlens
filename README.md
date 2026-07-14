@@ -5,8 +5,8 @@ auditable document-quality analysis. A model extracts structured, cited findings
 deterministic TypeScript code applies a documented rubric to calculate five dimension
 scores and one overall score.
 
-**Phases 0 and 1 are complete. Phase 2 has not started.** See `STATUS.md` before
-contributing and activate only the next eligible phase.
+**Phases 0–2 are complete. Phase 3 has not started.** See `STATUS.md` before contributing
+and activate only the next eligible phase.
 
 ## Architecture principle
 
@@ -15,6 +15,9 @@ contributing and activate only the next eligible phase.
 The model never generates scores. It identifies evidence-backed findings and explicitly
 marks information it cannot evaluate. A pure domain module will turn those findings into
 reproducible scores. This boundary keeps the rubric testable and auditable.
+
+The versioned extraction fields, evidence invariants, language behavior, prompts, and
+single controlled reinspection are documented in [`docs/ai-contract.md`](docs/ai-contract.md).
 
 ## Interface themes
 
@@ -49,7 +52,8 @@ pnpm build
 ## Environment
 
 Copy `.env.example` to `.env.local`. The Anthropic key is server-only and must never use
-a `NEXT_PUBLIC_` prefix. Phase 0 does not call Anthropic.
+a `NEXT_PUBLIC_` prefix. The pinned low-cost model can be overridden with
+`ANTHROPIC_MODEL`; the provider call itself is introduced in Phase 4.
 
 ## Railway deployment decision
 

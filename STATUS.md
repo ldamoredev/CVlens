@@ -7,9 +7,9 @@ phase marked `IN_PROGRESS`; do not begin the next phase automatically.
 
 ## Active phase
 
-**None. Phase 1 and its light-theme amendment are complete; Phase 2 remains `NOT_STARTED`.**
+**None. Phase 2 is complete; Phase 3 remains `NOT_STARTED`.**
 
-The next agent must explicitly mark Phase 2 `IN_PROGRESS` before changing its code.
+The next agent must explicitly mark Phase 3 `IN_PROGRESS` before changing its code.
 
 ## Roadmap
 
@@ -17,7 +17,7 @@ The next agent must explicitly mark Phase 2 `IN_PROGRESS` before changing its co
 | --- | --- | --- | --- |
 | 0 | Bootstrap | COMPLETED | MVP day 1; completed 2026-07-13 |
 | 1 | Visual foundation + examples | COMPLETED | Light-theme amendment completed 2026-07-13 |
-| 2 | Anthropic extraction contract | NOT_STARTED | MVP day 1 |
+| 2 | Anthropic extraction contract | COMPLETED | MVP day 1; completed 2026-07-13 |
 | 3 | Deterministic rubric engine | NOT_STARTED | MVP day 1; scope gate for phases 5–6 |
 | 4 | Real upload + example caching | NOT_STARTED | MVP day 2 |
 | 5 | Results, evidence, and recommendations | NOT_STARTED | MVP day 2 |
@@ -258,7 +258,67 @@ adding model-generated scores. Do not begin Phase 3 during that handoff.
 - Phase 6 security headers must account for the small inline pre-hydration theme script,
   preferably with the deployment's CSP nonce strategy.
 
+## Phase 2 work log
+
+### Files changed
+
+- Added Zod 4 as a pinned runtime dependency and defined the strict versioned extraction
+  contract under `src/domain/extraction/contract.ts`.
+- Added all 18 stable rubric criteria across the five dimensions. Every evaluated finding
+  requires one to three verbatim quotes; `not_evaluable` requires no evidence and an
+  explicit reason. Unknown fields, including any model-emitted score, are rejected.
+- Added evidence-backed `es` / `en` document-language detection plus `undetermined` for
+  unreadable or genuinely ambiguous documents, avoiding a silent language assumption.
+- Added the extraction-only system and analysis prompts under `src/server/anthropic/`,
+  including prompt-injection handling, protected-attribute exclusions, language rules,
+  and the complete criterion list.
+- Added a provider-neutral parser and one controlled independent reinspection after JSON
+  or Zod failure. Raw output and CV contents are excluded from retry feedback; provider
+  and transport failures are not retried by this mechanism.
+- Pinned the low-cost default to `claude-haiku-4-5-20251001`, bounded extraction output to
+  6,000 tokens, and kept `ANTHROPIC_MODEL` configurable.
+- Added schema, prompt, configuration, privacy, and retry tests plus the field-by-field
+  contract documentation in `docs/ai-contract.md`.
+- Updated `.env.example` and `README.md` for the completed contract and phase boundary.
+
+### Commands and validation
+
+- `pnpm add zod@4.3.6` — passed; dependency and lockfile updated.
+- `pnpm typecheck` — passed with strict TypeScript.
+- `pnpm lint` — passed with zero warnings.
+- `pnpm test` — passed: 8 files, 30 tests.
+- `pnpm build` — passed; production bundle compiled and both app routes generated.
+- Production smoke check — `pnpm start --hostname 127.0.0.1 --port 3102` returned HTTP
+  200, rendered CVLens and the visible no-storage privacy notice, then was stopped.
+- `git diff --check` — passed.
+
+### Decisions
+
+- Contract version `1.0` has a fixed object key for every criterion rather than a free-form
+  finding array. This forces complete extraction and gives Phase 3 stable deterministic
+  inputs without letting the model choose rubric categories or weights.
+- The four non-numeric outcomes are `meets`, `needs_improvement`, `mixed`, and
+  `not_evaluable`. Their numeric meaning, weights, partial-state behavior, and rounding are
+  deliberately deferred to Phase 3.
+- Zod remains the runtime authority even when Phase 4 connects Anthropic structured
+  output: provider-constrained JSON covers shape, while CVLens cross-field refinements
+  enforce evidence/reason invariants.
+- The retry is evidence reinspection, not response repair. There is exactly one second
+  attempt, and only after invalid JSON or schema mismatch.
+- No Anthropic SDK, API route, upload parsing, file buffers, live calls, scoring, or UI
+  changes were introduced in this phase.
+
+### Known debt / blockers
+
+- No blockers.
+- Phase 3 must document and exhaustively test the deterministic mapping from these
+  categorical findings to complete/partial/insufficient scores.
+- Phase 4 must add the server-only Anthropic SDK adapter, structured-output conversion,
+  multimodal document blocks, reviewed fixtures, and buffer cleanup. The pinned default
+  model must be changed only if those fixtures demonstrate a quality need.
+
 ## Current handoff
 
-Phase 1, including the light-theme base, is complete. Activate only Phase 2 next; preserve
-theme preference behavior and do not couple it to document-language detection.
+Phase 2 is complete and validated. Activate only Phase 3 next. Consume the exported
+`CvExtraction` contract in a pure TypeScript rubric module; do not import Anthropic,
+Next.js, or React, and do not begin the real upload/provider integration.

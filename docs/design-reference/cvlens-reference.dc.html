@@ -44,6 +44,7 @@
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:28px;font-family:'JetBrains Mono',monospace;font-size:12px">
       <a href="#concept" style="padding:7px 12px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#9BB0C9">00 · Concept</a>
       <a href="#system" style="padding:7px 12px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#9BB0C9">01 · Design system</a>
+      <a href="#light" style="padding:7px 12px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#9BB0C9">01L · Light theme</a>
       <a href="#prototype" style="padding:7px 12px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#9BB0C9">02 · Live prototype</a>
       <a href="#responsive" style="padding:7px 12px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#9BB0C9">03 · Responsive</a>
       <a href="#states" style="padding:7px 12px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#9BB0C9">04 · States</a>
@@ -206,6 +207,112 @@
           <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#64788F;line-height:1.3">{{ ic.name }}</span>
         </div>
       </sc-for>
+    </div>
+  </div>
+
+  <!-- ======== 01L LIGHT THEME ======== -->
+  <div id="light" style="max-width:1180px;margin:0 auto;padding:64px 40px 0 40px">
+    <div style="display:flex;align-items:baseline;gap:14px;border-top:1px solid rgba(255,255,255,0.08);padding-top:28px">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#4E9BE8">01L</span>
+      <h2 style="font-size:26px;font-weight:600;margin:0;letter-spacing:-0.01em">Light theme</h2>
+    </div>
+    <p style="font-size:14px;color:#9BB0C9;margin:12px 0 24px 0;max-width:660px;line-height:1.6">Misma identidad, invertida a superficie clara. Los acentos brillantes (<span style="font-family:'JetBrains Mono',monospace;color:#4E9BE8">#4E9BE8</span> / <span style="font-family:'JetBrains Mono',monospace;color:#3ECF8E">#3ECF8E</span>) se reservan para fills, íconos y bordes; para texto fino se usan variantes oscurecidas que pasan WCAG AA sobre blanco. El motivo punteado→sólido no cambia.</p>
+
+    <!-- light palette -->
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.12em;color:#64788F;text-transform:uppercase;margin:0 0 14px 0">Paleta light</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+      <sc-for list="{{ lightPalette }}" as="c" hint-placeholder-count="12">
+        <div style="border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden;background:#0E1A2E">
+          <div style="height:64px;background:{{ c.hex }};border-bottom:1px solid rgba(0,0,0,0.08);{{ c.swatchExtra }}"></div>
+          <div style="padding:12px 14px">
+            <div style="font-size:13px;font-weight:600;color:#E8EEF6">{{ c.name }}</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#64788F;margin-top:3px">{{ c.hex }}</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9BB0C9;margin-top:6px">{{ c.role }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- light mockups -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:32px;align-items:start">
+      <!-- workspace light -->
+      <div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#4E9BE8;margin-bottom:12px">Workspace · light</div>
+        <div style="border:1px solid #D3DEEC;border-radius:14px;overflow:hidden;background:#F4F7FB;box-shadow:0 1px 3px rgba(14,26,46,.08),0 8px 24px rgba(14,26,46,.06)">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 22px;border-bottom:1px solid #E4EBF4;background:#FFFFFF">
+            <span style="font-size:18px;font-weight:600"><span style="color:#0E1A2E">CV</span><span style="color:#2E7ACb">Lens</span></span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F9D63">● no almacena</span>
+          </div>
+          <div style="padding:28px 22px">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;color:#2E7ACb;text-transform:uppercase">Análisis auditable</div>
+            <h3 style="font-size:26px;line-height:1.12;font-weight:600;letter-spacing:-0.01em;margin:10px 0 0 0;color:#0E1A2E">Analizamos el documento, no a la persona.</h3>
+            <p style="font-size:14px;color:#3E526B;line-height:1.6;margin:12px 0 0 0">Puntaje reproducible con evidencia citada y recomendaciones accionables.</p>
+            <div style="margin-top:22px;border:1.5px dashed #9DB4D0;border-radius:14px;padding:30px 20px;text-align:center;background:rgba(46,122,203,0.04)">
+              <div style="width:48px;height:48px;border-radius:11px;border:1.5px dashed #2E7ACb;display:flex;align-items:center;justify-content:center;margin:0 auto 14px auto;color:#2E7ACb">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 16V4m0 0L7 9m5-5 5 5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2" stroke-linecap="round"/></svg>
+              </div>
+              <div style="font-size:15px;font-weight:600;color:#0E1A2E">Arrastrá o seleccioná tu CV</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#647A96;margin-top:8px">PDF · JPG · PNG — máx. 8&nbsp;MB</div>
+              <button style="margin-top:16px;background:#2E7ACb;color:#FFFFFF;border:none;border-radius:8px;padding:12px 22px;font-family:'Space Grotesk';font-weight:600;font-size:14px;min-height:44px">Seleccionar archivo</button>
+              <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F9D63">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2 4 5v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V5l-8-3Z" stroke-linejoin="round"/></svg>
+                Tu CV no se almacena. Se analiza y se descarta.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- result light -->
+      <div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#4E9BE8;margin-bottom:12px">Resultado · light</div>
+        <div style="border:1px solid #D3DEEC;border-radius:14px;overflow:hidden;background:#F4F7FB;box-shadow:0 1px 3px rgba(14,26,46,.08),0 8px 24px rgba(14,26,46,.06)">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 22px;border-bottom:1px solid #E4EBF4;background:#FFFFFF">
+            <span style="font-size:18px;font-weight:600"><span style="color:#0E1A2E">CV</span><span style="color:#2E7ACb">Lens</span></span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F9D63">● completo</span>
+          </div>
+          <div style="padding:24px 22px">
+            <div style="display:flex;align-items:center;gap:18px;border:1px solid rgba(31,157,99,0.35);border-radius:12px;padding:18px;background:#FFFFFF">
+              <div style="position:relative;width:96px;height:96px;flex-shrink:0">
+                <svg width="96" height="96" viewBox="0 0 96 96" style="transform:rotate(-90deg)">
+                  <circle cx="48" cy="48" r="40" fill="none" stroke="rgba(14,26,46,0.10)" stroke-width="8" stroke-dasharray="2 6"/>
+                  <circle cx="48" cy="48" r="40" fill="none" stroke="#2E7ACb" stroke-width="8" stroke-linecap="round" stroke-dasharray="196 251"/>
+                </svg>
+                <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><span style="font-family:'Space Grotesk';font-size:30px;font-weight:600;color:#0E1A2E;line-height:1">78</span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#647A96">/100</span></div>
+              </div>
+              <div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#647A96;text-transform:uppercase;letter-spacing:.08em">Puntaje general</div>
+                <div style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F9D63"><span style="width:6px;height:6px;border-radius:50%;background:#1F9D63"></span>Análisis completo</div>
+                <div style="font-size:12px;color:#3E526B;line-height:1.5;margin-top:8px;max-width:26ch">Evalúa el documento, no a la persona.</div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
+              <div style="border:1px solid #D3DEEC;border-radius:10px;padding:14px;background:#FFFFFF">
+                <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px;font-weight:600;color:#0E1A2E">Impacto y logros</span><span style="font-family:'JetBrains Mono',monospace;font-weight:600;color:#0E1A2E">82</span></div>
+                <div style="margin-top:10px;height:6px;border-radius:3px;background-image:repeating-linear-gradient(90deg,rgba(14,26,46,0.12) 0 3px,transparent 3px 7px)"><div style="height:6px;width:82%;background:#2E7ACb;border-radius:3px"></div></div>
+                <span style="display:inline-block;margin-top:10px;font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F9D63;border:1px solid rgba(31,157,99,0.35);border-radius:4px;padding:2px 7px">+ positivo</span>
+              </div>
+              <div style="border:1px solid #D3DEEC;border-radius:10px;padding:14px;background:#FFFFFF">
+                <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px;font-weight:600;color:#0E1A2E">Estructura ATS</span><span style="font-family:'JetBrains Mono',monospace;font-weight:600;color:#0E1A2E">68</span></div>
+                <div style="margin-top:10px;height:6px;border-radius:3px;background-image:repeating-linear-gradient(90deg,rgba(14,26,46,0.12) 0 3px,transparent 3px 7px)"><div style="height:6px;width:68%;background:#2E7ACb;border-radius:3px"></div></div>
+                <span style="display:inline-block;margin-top:10px;font-family:'JetBrains Mono',monospace;font-size:10px;color:#B5610E;border:1px solid rgba(181,97,14,0.35);border-radius:4px;padding:2px 7px">− a mejorar</span>
+              </div>
+              <div style="border:1px solid #D3DEEC;border-radius:10px;padding:14px;background:#FFFFFF">
+                <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px;font-weight:600;color:#3E526B">Consistencia</span><span style="font-family:'JetBrains Mono',monospace;color:#647A96">—</span></div>
+                <div style="margin-top:10px;height:6px;border-radius:3px;border:1px dashed rgba(14,26,46,0.22)"></div>
+                <span style="display:inline-block;margin-top:10px;font-family:'JetBrains Mono',monospace;font-size:10px;color:#647A96;border:1px dashed rgba(14,26,46,0.28);border-radius:4px;padding:2px 7px">◌ no evaluable</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AA / usage note -->
+    <div style="border:1px solid rgba(78,155,232,0.3);border-radius:10px;background:rgba(78,155,232,0.05);padding:16px 20px;margin-top:20px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#9BB0C9;line-height:1.7">
+      <span style="color:#4E9BE8">AA · texto sobre blanco</span> → azul <span style="color:#E8EEF6">#2E7ACb</span>, verde <span style="color:#E8EEF6">#1F9D63</span>, ámbar <span style="color:#E8EEF6">#B5610E</span>, rojo <span style="color:#E8EEF6">#C4362F</span>.<br>
+      <span style="color:#4E9BE8">Fills / bordes / íconos</span> → azul <span style="color:#E8EEF6">#4E9BE8</span>, verde <span style="color:#E8EEF6">#3ECF8E</span> puros permitidos.<br>
+      <span style="color:#4E9BE8">Track medidor light</span> → repeating-linear-gradient(90deg, #0E1A2E1F 0 3px, transparent 3px 7px). Focus ring 0 0 0 3px rgba(46,122,203,.35).
     </div>
   </div>
 
@@ -785,6 +892,21 @@ class Component extends DCLogic {
       { name: 'Text low', hex: '#64788F', role: 'metadatos / mono' }
     ];
 
+    const lightPalette = [
+      { name: 'Canvas', hex: '#F4F7FB', role: 'fondo página', swatchExtra: '' },
+      { name: 'Surface', hex: '#FFFFFF', role: 'cards / base', swatchExtra: '' },
+      { name: 'Raised', hex: '#EDF2F9', role: 'hover / row', swatchExtra: '' },
+      { name: 'Line', hex: '#D3DEEC', role: 'bordes', swatchExtra: '' },
+      { name: 'TS Blue (text)', hex: '#2E7ACb', role: 'acento AA texto', swatchExtra: '' },
+      { name: 'TS Blue (fill)', hex: '#4E9BE8', role: 'fills / íconos', swatchExtra: '' },
+      { name: 'Verify (text)', hex: '#1F9D63', role: 'éxito AA texto', swatchExtra: '' },
+      { name: 'Verify (fill)', hex: '#3ECF8E', role: 'fills / íconos', swatchExtra: '' },
+      { name: 'Amber', hex: '#B5610E', role: 'parcial / atención', swatchExtra: '' },
+      { name: 'Danger', hex: '#C4362F', role: 'error técnico', swatchExtra: '' },
+      { name: 'Ink hi', hex: '#0E1A2E', role: 'titulares / texto', swatchExtra: '' },
+      { name: 'Ink mid', hex: '#3E526B', role: 'lectura / meta', swatchExtra: '' }
+    ];
+
     const typeScale = [
       { label: 'Display', spec: 'Space Grotesk 600 · 40–64px' },
       { label: 'H2 sección', spec: 'Space Grotesk 600 · 26px' },
@@ -1032,7 +1154,7 @@ class Component extends DCLogic {
     ].join("\n");
 
     return {
-      palette, typeScale, spacing, icons,
+      palette, lightPalette, typeScale, spacing, icons,
       langEsStyle: langBtn(isEs), langEnStyle: langBtn(!isEs),
       setLangEs: () => this.setState({ lang: 'es' }), setLangEn: () => this.setState({ lang: 'en' }),
       t_kicker: isEs ? 'Análisis auditable' : 'Auditable analysis',

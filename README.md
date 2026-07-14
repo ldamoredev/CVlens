@@ -16,6 +16,12 @@ The model never generates scores. It identifies evidence-backed findings and exp
 marks information it cannot evaluate. A pure domain module will turn those findings into
 reproducible scores. This boundary keeps the rubric testable and auditable.
 
+## Interface themes
+
+CVLens supports the approved dark and light themes. The initial theme follows the system
+preference; a choice made with the header toggle is saved locally for later visits. Theme
+selection is independent from the CV's detected language.
+
 ## Local development
 
 Requirements:

@@ -7,7 +7,7 @@ phase marked `IN_PROGRESS`; do not begin the next phase automatically.
 
 ## Active phase
 
-**None. Phase 1 is complete; Phase 2 remains `NOT_STARTED`.**
+**None. Phase 1 and its light-theme amendment are complete; Phase 2 remains `NOT_STARTED`.**
 
 The next agent must explicitly mark Phase 2 `IN_PROGRESS` before changing its code.
 
@@ -16,7 +16,7 @@ The next agent must explicitly mark Phase 2 `IN_PROGRESS` before changing its co
 | Phase | Name | Status | Priority / gate |
 | --- | --- | --- | --- |
 | 0 | Bootstrap | COMPLETED | MVP day 1; completed 2026-07-13 |
-| 1 | Visual foundation + examples | COMPLETED | MVP day 1; completed 2026-07-13 |
+| 1 | Visual foundation + examples | COMPLETED | Light-theme amendment completed 2026-07-13 |
 | 2 | Anthropic extraction contract | NOT_STARTED | MVP day 1 |
 | 3 | Deterministic rubric engine | NOT_STARTED | MVP day 1; scope gate for phases 5–6 |
 | 4 | Real upload + example caching | NOT_STARTED | MVP day 2 |
@@ -102,9 +102,9 @@ The next agent must explicitly mark Phase 2 `IN_PROGRESS` before changing its co
 
 ## Approved UI/UX reference
 
-The Claude Design reference supplied on 2026-07-13 is preserved unchanged under
-`docs/design-reference/`. Its HTML and runtime have matching SHA-256 hashes with the
-source files, and usage notes are recorded in that directory's `README.md`.
+The current Claude Design light-theme revision supplied on 2026-07-13 is preserved
+unchanged under `docs/design-reference/`. Its HTML and runtime have matching SHA-256
+hashes with the source files, and usage notes are recorded in that directory's `README.md`.
 
 Implement it incrementally: Phase 1 owns the visual foundation and mock states, Phase 5
 owns the complete evidence-backed result, and Phase 6 owns production hardening states.
@@ -218,3 +218,47 @@ Phase 0 was completed and its handoff was fulfilled by the Phase 1 implementatio
 Phase 1 is complete and validated. The next agent should activate only Phase 2, define the
 Zod findings contract and prompts, and preserve the existing presentation fixtures without
 adding model-generated scores. Do not begin Phase 3 during that handoff.
+
+## Phase 1 light-theme amendment
+
+### Files changed
+
+- Replaced `docs/design-reference/cvlens-reference.dc.html` with the approved light-theme
+  revision (`f8b82a0e…fa08c6`); `support.js` was already byte-identical and remains intact.
+- Added semantic light tokens and component overrides in `src/app/globals.css` using the
+  reference's WCAG-AA text colors and light surfaces.
+- Added an accessible sun/moon toggle to the application header.
+- Added a pre-hydration theme initializer and pure preference resolver in
+  `src/lib/theme.ts`, with unit coverage.
+
+### Commands and validation
+
+- `pnpm typecheck` — passed.
+- `pnpm lint` — passed with zero warnings.
+- `pnpm test` — passed: 4 files, 13 tests.
+- `pnpm build` — passed.
+- Production browser check — dark → light → dark toggle passed; accessible action labels
+  updated correctly and the chosen theme survived a full reload.
+- Light-theme idle and partial-result layouts passed at 1440, 390, and 320 px with no
+  horizontal overflow; cards resolved to white on `#F4F7FB` and retained readable ink.
+- Browser console audit — no warnings or errors.
+
+### Decisions
+
+- With no saved choice, the initial theme follows `prefers-color-scheme`; an explicit
+  choice is stored under `cvlens-theme` and takes precedence on later visits.
+- Theme initialization runs before hydration to avoid a dark/light flash. Theme selection
+  remains independent from UI language and detected CV language.
+- Light mode uses darker AA-safe text accents (`#2E7ACB`, `#1F9D63`, `#B5610E`,
+  `#C4362F`) while preserving the dotted-to-solid motif.
+
+### Known debt / blockers
+
+- No blockers.
+- Phase 6 security headers must account for the small inline pre-hydration theme script,
+  preferably with the deployment's CSP nonce strategy.
+
+## Current handoff
+
+Phase 1, including the light-theme base, is complete. Activate only Phase 2 next; preserve
+theme preference behavior and do not couple it to document-language detection.

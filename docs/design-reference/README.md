@@ -1,7 +1,8 @@
 # CVLens UI/UX reference
 
-This directory preserves the approved Claude Design reference supplied on 2026-07-13.
-It is a visual specification, not production application code.
+This directory preserves the approved Claude Design reference supplied on 2026-07-13
+and its light-theme revision from the same date. It is a visual specification, not
+production application code.
 
 ## Files
 
@@ -16,7 +17,7 @@ Space Grotesk and JetBrains Mono from Google Fonts when network access is availa
 The imported files are exact copies of the supplied reference:
 
 ```text
-f70df0f0d224f97d7e978778f7340d03128c5bb889ff45cb011afafaf4c63022  cvlens-reference.dc.html
+f8b82a0ee732800ffd979496df1850bebc4a1e6cd33c3672a49ddc1f17fa08c6  cvlens-reference.dc.html
 ae4f0ac8449655e17cca1e3b179effcb6817a3b0d8dc47f112a9c39c25c39fd7  support.js
 ```
 
@@ -29,7 +30,7 @@ the approved reference from implementation adjustments.
 Adopt the reference incrementally according to `STATUS.md`:
 
 - Phase 1 owns the visual system, landing, upload surface, examples, responsive layouts,
-  mock result skeleton, and prescribed UI states.
+  mock result skeleton, prescribed UI states, and the dark/light theme foundation.
 - Phase 5 owns the complete result, expandable evidence, and recommendations.
 - Phase 6 owns production error handling, rate limiting, security, and privacy hardening.
 

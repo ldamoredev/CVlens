@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import "@fontsource-variable/jetbrains-mono";
 import "@fontsource-variable/space-grotesk";
 
+import { themeInitScript } from "@/lib/theme";
+
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,7 +19,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
+    <html lang="es" data-theme="dark" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body>{children}</body>
     </html>
   );

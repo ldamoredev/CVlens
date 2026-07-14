@@ -22,6 +22,7 @@ import {
   type PreviewState,
   validateUpload,
 } from "@/lib/presentation-state";
+import { THEME_STORAGE_KEY, type Theme } from "@/lib/theme";
 
 type AppState = Exclude<PreviewState, "dragging">;
 
@@ -40,6 +41,9 @@ const copy = {
     tagline: "Análisis verificable de CVs",
     navPrivacy: "no almacena",
     cvLanguage: "idioma del CV",
+    changeTheme: "Cambiar tema",
+    useDarkTheme: "Usar tema oscuro",
+    useLightTheme: "Usar tema claro",
     kicker: "Análisis auditable",
     title: "Analizamos el documento, no a la persona.",
     subtitle:
@@ -90,6 +94,9 @@ const copy = {
     tagline: "Verifiable CV analysis",
     navPrivacy: "never stored",
     cvLanguage: "CV language",
+    changeTheme: "Change theme",
+    useDarkTheme: "Use dark theme",
+    useLightTheme: "Use light theme",
     kicker: "Auditable analysis",
     title: "We analyze the document, not the person.",
     subtitle:
@@ -251,6 +258,23 @@ function CloseIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+function SunIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <circle cx="12" cy="12" r="3.5" />
+      <path d="M12 2.5v2M12 19.5v2M4.5 4.5l1.4 1.4M18.1 18.1l1.4 1.4M2.5 12h2M19.5 12h2M4.5 19.5l1.4-1.4M18.1 5.9l1.4-1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function MoonIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M20 15.5A8 8 0 0 1 8.5 4a8.2 8.2 0 1 0 11.5 11.5Z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function isErrorState(
   state: AppState,
 ): state is "file_too_large" | "insufficient" | "invalid_format" | "rate_limited" | "technical_error" {
@@ -290,6 +314,17 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
   const [progressStep, setProgressStep] = useState(0);
   const [openDimension, setOpenDimension] = useState(0);
   const t = copy[language];
+
+  useEffect(() => {
+    const preference = window.matchMedia("(prefers-color-scheme: light)");
+    const syncSystemTheme = (event: MediaQueryListEvent) => {
+      if (window.localStorage.getItem(THEME_STORAGE_KEY)) return;
+      document.documentElement.dataset.theme = event.matches ? "light" : "dark";
+    };
+
+    preference.addEventListener("change", syncSystemTheme);
+    return () => preference.removeEventListener("change", syncSystemTheme);
+  }, []);
 
   useEffect(() => {
     if (viewState !== "loading" || initialPreviewState === "loading") return;
@@ -358,6 +393,13 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
     setViewState("loading");
   };
 
+  const toggleTheme = () => {
+    const currentTheme: Theme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
+    const nextTheme: Theme = currentTheme === "light" ? "dark" : "light";
+    document.documentElement.dataset.theme = nextTheme;
+    window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+  };
+
   const result = activeExample ?? initialExampleFor(viewState);
   const documentFlow = viewState === "loading" || viewState === "partial" || viewState === "success";
 
@@ -370,6 +412,17 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
         <span className="header-tagline">{t.tagline}</span>
         <div className="header-controls">
           <span className="privacy-indicator"><span aria-hidden="true" />{t.navPrivacy}</span>
+          <button
+            className="theme-toggle"
+            type="button"
+            onClick={toggleTheme}
+            title={t.changeTheme}
+          >
+            <SunIcon className="theme-icon theme-icon-sun" aria-hidden="true" />
+            <MoonIcon className="theme-icon theme-icon-moon" aria-hidden="true" />
+            <span className="theme-action theme-action-light">{t.useLightTheme}</span>
+            <span className="theme-action theme-action-dark">{t.useDarkTheme}</span>
+          </button>
           {documentFlow ? (
             <span className="document-language">{t.cvLanguage} · {language.toUpperCase()}</span>
           ) : (

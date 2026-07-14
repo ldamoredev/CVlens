@@ -23,8 +23,8 @@ structured outputs for it:
 - [Anthropic model overview](https://platform.claude.com/docs/en/about-claude/models/overview)
 - [Anthropic structured outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs)
 
-Phase 2 does not call Anthropic. Phase 4 will attach the PDF/image and connect the provider
-SDK to this contract.
+The Phase 4 server adapter attaches the PDF/image and connects the Anthropic SDK to this
+contract. Zod remains the runtime authority after provider-constrained generation.
 
 ## Top-level fields
 
@@ -81,8 +81,10 @@ representative inspected text; if exact support is not possible, the criterion i
 | `quote` | string, 1–500 chars | Verbatim text copied from the CV. | `"Reduced processing time by 24%"` |
 | `location` | string, 1–120 chars | Non-sensitive section or entry label that lets a reviewer locate the quote. | `"Experience — Operations Lead"` |
 
-Evidence must never quote contact values or protected attributes. A quote is evidence for
-the document observation only; it is not proof of a person's real-world ability.
+Evidence, locations, explanations, and non-evaluable reasons must never reproduce contact
+values or protected attributes. The schema rejects email addresses, phone-like values,
+and web-profile URLs even if a provider response violates the prompt. A quote is evidence
+for the document observation only; it is not proof of a person's real-world ability.
 
 ## Dimension criteria
 
@@ -180,8 +182,9 @@ not itself schema-valid. Complete valid objects are exercised in
 2. The analysis prompt enumerates every criterion and tells the model to detect language
    from document content and mark unsupported determinations explicitly.
 
-The prompt never includes a user's CV text through string interpolation. Phase 4 will send
-the file as a separate PDF `document` or image content block.
+The prompt never includes a user's CV text through string interpolation. The provider
+adapter sends the file as a separate PDF `document` or image content block before the
+analysis instruction.
 
 ## Controlled reinspection
 
@@ -207,7 +210,7 @@ unsupported claim merely to satisfy the schema.
 
 - Phase 3 may read these categorical outcomes but must not import Anthropic, Next.js, or
   React.
-- Phase 4 owns provider SDK integration, multimodal content blocks, MIME/size validation,
-  image resize, buffer cleanup, and cached reviewed example extractions.
+- Phase 4 implemented provider SDK integration, multimodal content blocks, MIME/size
+  validation, image resize, buffer cleanup, and cached reviewed example extractions.
 - Phase 5 owns the final evidence/recommendation presentation. Recommendations must never
   introduce facts absent from the source CV.

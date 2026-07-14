@@ -7,9 +7,9 @@ phase marked `IN_PROGRESS`; do not begin the next phase automatically.
 
 ## Active phase
 
-**None. Phase 3 is complete; Phase 4 remains `NOT_STARTED`.**
+**No phase is active. Phase 4 was completed on 2026-07-13.**
 
-The next agent must explicitly mark Phase 4 `IN_PROGRESS` before changing its code.
+The next eligible phase is Phase 5. It must be activated explicitly before changing code.
 
 ## Roadmap
 
@@ -19,7 +19,7 @@ The next agent must explicitly mark Phase 4 `IN_PROGRESS` before changing its co
 | 1 | Visual foundation + examples | COMPLETED | Light-theme amendment completed 2026-07-13 |
 | 2 | Anthropic extraction contract | COMPLETED | MVP day 1; completed 2026-07-13 |
 | 3 | Deterministic rubric engine | COMPLETED | MVP day 1; completed 2026-07-13 |
-| 4 | Real upload + example caching | NOT_STARTED | MVP day 2 |
+| 4 | Real upload + example caching | COMPLETED | MVP day 2; completed 2026-07-13 |
 | 5 | Results, evidence, and recommendations | NOT_STARTED | MVP day 2 |
 | 6 | Hardening | NOT_STARTED | MVP day 2 |
 | 7 | Tests, fixtures, and launch | NOT_STARTED | MVP day 2; MVP release gate |
@@ -380,9 +380,94 @@ adding model-generated scores. Do not begin Phase 3 during that handoff.
 - Any future weight, outcome, threshold, or rounding change requires a documented rubric
   version bump and regression review.
 
+## Phase 3 handoff — fulfilled
+
+Phase 3 was completed and its handoff was fulfilled by the Phase 4 implementation below.
+
+## Phase 4 work log
+
+### Files changed
+
+- Added shared PDF/JPEG/PNG metadata and signature validation under `src/domain/upload`,
+  with an 8 MiB file cap, bounded multipart allowance, and exhaustive boundary tests.
+- Added the server upload preparation pipeline under `src/server/upload`: PDFs remain
+  native; images are orientation-normalized, flattened, resized inside 1568 px, and
+  re-encoded as bounded JPEG. Original and normalized buffers are zeroed in `finally`.
+- Added the server-only Anthropic adapter with native document/image blocks, structured
+  output derived from Zod, a 180-second SDK timeout, disabled SDK logging/retries, and the
+  existing single controlled schema reinspection.
+- Added `POST /api/analyze`, which validates input, runs extraction, passes only validated
+  findings to the deterministic rubric, returns `no-store`, and exposes only bounded error
+  codes without logging provider details or CV contents.
+- Connected the upload UI to the real endpoint. The browser validates the returned
+  extraction again and recomputes the deterministic score before presentation; uploaded
+  file references are released after each request.
+- Replaced Phase 1 mock presentation data with three schema-valid, hand-reviewed cached
+  extraction fixtures. Every citation is regression-checked against its fictional source,
+  and example selection remains local with no API/model call.
+- Added a generic extraction-plus-rubric presentation mapper as a Phase 4 bridge. Phase 5
+  still owns the complete evidence and recommendations experience.
+- Hardened the extraction contract after a live fictional review exposed a contact-value
+  quote: emails, phone-like values, and profile/web URLs are now rejected from evidence,
+  locations, explanations, and non-evaluable reasons as well as forbidden by the prompt.
+- Added exact runtime dependencies `@anthropic-ai/sdk@0.111.0`, `sharp@0.35.3`, and
+  `server-only@0.0.1`, plus `docs/upload-pipeline.md` and updated boundary documentation.
+
+### Commands and validation
+
+- `pnpm typecheck` — passed with strict TypeScript.
+- `pnpm lint` — passed with zero warnings.
+- `pnpm test` — passed: 15 files, 88 tests.
+- `pnpm build` — passed; `/api/analyze` is dynamic and the root production route compiled.
+- `git diff --check` — passed.
+- Production smoke check — `pnpm start --hostname 127.0.0.1 --port 3104` returned HTTP
+  200 for `/`, then was stopped.
+- Manual production analysis — a rendered fictional English CV image completed through
+  the real endpoint in 21.9 seconds, detected `en`, returned deterministic partial score
+  79 at 95% coverage, and returned no contact evidence.
+- Live fixture review — all three fictional CVs completed against the configured Anthropic
+  key; extractions were compared with their source text, then cached and manually corrected
+  where layout/ATS and date-consistency findings required stricter review.
+- Invalid-upload check — a Markdown fixture returned `invalid_format` before a provider
+  call. Unit coverage also verifies empty, oversized, corrupt, MIME-spoofed, and excessive-
+  pixel inputs as well as buffer cleanup on success and failure.
+- Cached-example regression — all three fixtures pass Zod, score deterministically, and
+  every evidence quote is an exact substring of the corresponding fictional CV source.
+
+### Decisions
+
+- The 8 MiB upload limit is a shared code invariant rather than an environment variable,
+  so client and server cannot drift through deployment configuration.
+- PDFs are sent natively to Anthropic; CVLens does not locally extract or persist their
+  text. Images are normalized to the provider's practical 1568 px vision boundary.
+- Provider-constrained JSON does not replace Zod. CVLens validates all cross-field and
+  privacy invariants before the extraction can enter `scoreExtraction`.
+- The server returns the rubric for an auditable API boundary, while the client recomputes
+  it from the validated extraction instead of trusting a transport-supplied score.
+- Bundled examples store reviewed categorical extractions, not model scores. Their numbers
+  are calculated from the same rubric at runtime and never consume the configured API key.
+- Contact completeness remains explicitly `not_evaluable` whenever it cannot be supported
+  with privacy-safe category labels; contact values are never accepted as evidence.
+
+### Known debt / blockers
+
+- No product blocker.
+- The in-app browser harness could not initialize because its installed runtime attempts
+  to redefine a protected `process` property. Production HTTP/live-flow checks passed, but
+  Phase 5 should repeat the visual interaction and mobile-overflow audit when that harness
+  is available.
+- Phase 6 still owns streaming/body hardening for requests without a trustworthy
+  `Content-Length`, per-IP rate limiting, final timeout/error policy, security headers,
+  non-sensitive metrics, the privacy notice, and `/health`.
+- Native PDF page-count enforcement is intentionally absent; long-form CV support remains
+  deferred, and the rubric marks length not evaluable when document evidence is unclear.
+- Base64 strings created inside the SDK cannot be overwritten in JavaScript. They remain
+  request-local and become garbage-collectable after the request; mutable upload buffers
+  are explicitly zeroed.
+
 ## Current handoff
 
-Phase 3 is complete and validated. Activate only Phase 4 next. Use the server-only API key
-without reading or logging it, validate files before provider calls, pass only Zod-validated
-extractions into `scoreExtraction`, clear upload buffers promptly, and keep examples cached
-with no live demo calls. Do not begin the Phase 5 result redesign during that handoff.
+Phase 4 is complete and validated. Activate only Phase 5 next. Build the full expandable
+results, evidence, and actionable recommendation presentation from the existing validated
+extraction and rubric outputs; do not change scoring weights or introduce hardening work
+owned by Phase 6.

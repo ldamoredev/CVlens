@@ -13,8 +13,9 @@ describe("fictional CV presentation fixtures", () => {
     ]);
   });
 
-  it("provides five mock dimensions and only bounded presentation scores", () => {
+  it("derives five bounded presentation scores from reviewed cached findings", () => {
     for (const example of fictionalExamples) {
+      expect(example.source).toBe("cached_example");
       expect(example.dimensions).toHaveLength(5);
       expect(example.overallScore).toBeGreaterThanOrEqual(0);
       expect(example.overallScore).toBeLessThanOrEqual(100);
@@ -29,13 +30,19 @@ describe("fictional CV presentation fixtures", () => {
     }
   });
 
-  it("keeps non-evaluable findings explicit in the partial example", () => {
-    const partial = fictionalExamples.find((example) => example.status === "partial");
-    const nonEvaluable = partial?.dimensions.find((dimension) => dimension.score === null);
+  it("keeps partial coverage explicit in the reviewed Spanish example", () => {
+    const partial = fictionalExamples.find(
+      (example) => example.id === "marina-rivas",
+    );
 
     expect(partial).toBeDefined();
-    expect(nonEvaluable?.effect).toBe("not_evaluable");
-    expect(nonEvaluable?.finding).toBeTruthy();
-    expect(nonEvaluable?.recommendation).toBeTruthy();
+    expect(partial?.status).toBe("partial");
+    expect(partial?.language).toBe("es");
+    expect(partial?.dimensions.some((dimension) => dimension.effect === "negative")).toBe(
+      true,
+    );
+    expect(partial?.dimensions.every((dimension) => dimension.recommendation.length > 0)).toBe(
+      true,
+    );
   });
 });

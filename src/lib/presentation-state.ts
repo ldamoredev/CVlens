@@ -1,6 +1,9 @@
-export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
+import {
+  MAX_UPLOAD_BYTES,
+  validateUploadMetadata,
+} from "../domain/upload/policy";
 
-export const allowedMimeTypes = ["application/pdf", "image/jpeg", "image/png"] as const;
+export { MAX_UPLOAD_BYTES };
 
 export type PreviewState =
   | "dragging"
@@ -38,15 +41,12 @@ export function normalizePreviewState(value: string | undefined): PreviewState {
 }
 
 export function validateUpload(file: Pick<File, "size" | "type">): UploadValidation {
-  if (!allowedMimeTypes.includes(file.type as (typeof allowedMimeTypes)[number])) {
-    return { valid: false, reason: "invalid_format" };
-  }
-
-  if (file.size > MAX_UPLOAD_BYTES) {
-    return { valid: false, reason: "file_too_large" };
-  }
-
-  return { valid: true };
+  const result = validateUploadMetadata(file);
+  if (result.valid) return { valid: true };
+  return {
+    valid: false,
+    reason: result.reason === "file_too_large" ? "file_too_large" : "invalid_format",
+  };
 }
 
 export function formatFileSize(bytes: number, language: "en" | "es"): string {

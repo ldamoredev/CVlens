@@ -8,6 +8,18 @@ export const FINDING_OUTCOMES = [
   "not_evaluable",
 ] as const;
 
+const emailPattern = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
+const contactUrlPattern = /(?:https?:\/\/|www\.|github\.com|linkedin\.com)/i;
+const phonePattern = /(?:\+|\()?\d(?:[\s().-]*\d){9,}/;
+
+export function containsContactValue(value: string): boolean {
+  return (
+    emailPattern.test(value) ||
+    contactUrlPattern.test(value) ||
+    phonePattern.test(value)
+  );
+}
+
 export const evidenceQuoteSchema = z
   .object({
     quote: z
@@ -23,7 +35,24 @@ export const evidenceQuoteSchema = z
       .max(120)
       .describe("A non-sensitive section or entry label that helps locate the quote."),
   })
-  .strict();
+  .strict()
+  .superRefine((evidence, context) => {
+    if (containsContactValue(evidence.quote)) {
+      context.addIssue({
+        code: "custom",
+        message: "Evidence must not reproduce contact values.",
+        path: ["quote"],
+      });
+    }
+
+    if (containsContactValue(evidence.location)) {
+      context.addIssue({
+        code: "custom",
+        message: "Evidence locations must not reproduce contact values.",
+        path: ["location"],
+      });
+    }
+  });
 
 export const criterionFindingSchema = z
   .object({
@@ -50,6 +79,25 @@ export const criterionFindingSchema = z
   })
   .strict()
   .superRefine((finding, context) => {
+    if (containsContactValue(finding.explanation)) {
+      context.addIssue({
+        code: "custom",
+        message: "Explanations must not reproduce contact values.",
+        path: ["explanation"],
+      });
+    }
+
+    if (
+      finding.notEvaluableReason !== null &&
+      containsContactValue(finding.notEvaluableReason)
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "Non-evaluable reasons must not reproduce contact values.",
+        path: ["notEvaluableReason"],
+      });
+    }
+
     if (finding.outcome === "not_evaluable") {
       if (finding.evidence.length > 0) {
         context.addIssue({
@@ -106,6 +154,17 @@ const documentSchema = z
   })
   .strict()
   .superRefine((document, context) => {
+    if (
+      document.languageReason !== null &&
+      containsContactValue(document.languageReason)
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "Language reasons must not reproduce contact values.",
+        path: ["languageReason"],
+      });
+    }
+
     if (document.language === "undetermined") {
       if (document.languageEvidence.length > 0) {
         context.addIssue({

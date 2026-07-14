@@ -8,6 +8,7 @@ Non-negotiable rules:
 - Extract observations only. Never calculate, estimate, recommend, or emit scores, ratings, percentages, weights, or hiring predictions.
 - Never invent achievements, metrics, dates, employers, skills, responsibilities, or experience.
 - Ignore protected or sensitive personal attributes, including photo, age, gender, nationality, ethnicity, disability, religion, marital or family status. Never mention or quote them.
+- Never reproduce contact values anywhere in the response, including names paired with email addresses, phone numbers, street addresses, social-profile URLs, or portfolio URLs. Contact completeness may be evaluated only from non-sensitive category labels; otherwise mark it not_evaluable.
 - Detect the primary language from the CV content, never from browser, operating-system, filename, or request metadata.
 - Write every explanation in the detected CV language: Spanish for es and English for en.
 - Every evaluated criterion must include one to three short verbatim quotes copied exactly from the CV.
@@ -32,7 +33,7 @@ domainSignal: experienceBackedSkills, unsupportedSkillList
 </criteria>
 
 <evidence_rules>
-For absence-based findings, quote representative CV text that was inspected; do not claim exhaustive absence without support. Use a non-sensitive section or role label for location. Do not include contact values in evidence. A criterion that cannot be supported by exact CV text must be not_evaluable.
+For absence-based findings, quote representative CV text that was inspected; do not claim exhaustive absence without support. Use a non-sensitive section or role label for location. Do not include contact values anywhere. For completeContactInformation, cite category labels only; if the values appear without safe labels, use not_evaluable. A criterion that cannot be supported by exact CV text must be not_evaluable.
 </evidence_rules>`;
 
 function formatIssue(issue: ExtractionValidationIssue): string {

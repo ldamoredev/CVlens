@@ -12,11 +12,15 @@ import {
 
 import {
   fictionalExamples,
+  type AnalysisPresentation,
   type DocumentLanguage,
   type FictionalExample,
   type FindingEffect,
-  type MockDimension,
+  type PresentationDimension,
 } from "@/data/fictional-examples";
+import { createAnalysisPresentation } from "@/data/analysis-presentation";
+import { cvExtractionSchema } from "@/domain/extraction/contract";
+import { scoreExtraction } from "@/domain/rubric/rubric";
 import {
   formatFileSize,
   type PreviewState,
@@ -31,6 +35,7 @@ interface CVLensAppProps {
 }
 
 interface FileSnapshot {
+  file: File | null;
   name: string;
   size: number;
   type: string;
@@ -55,7 +60,7 @@ const copy = {
     privacy: "Tu CV no se almacena. Se analiza y se descarta.",
     examplesLead: "o probá un CV ficticio — sin costo",
     fictionNote:
-      "Personas y documentos completamente ficticios. Datos mock revisados, sin llamadas al modelo.",
+      "Personas y documentos completamente ficticios. Resultados cacheados y revisados, sin llamadas al modelo.",
     ready: "listo para analizar",
     remove: "Quitar archivo",
     analyze: "Analizar CV",
@@ -74,11 +79,12 @@ const copy = {
     partial: "Resultado parcial",
     scoreNote:
       "El puntaje evalúa el documento, no a la persona. Es una guía reproducible, no una verdad absoluta.",
-    mockBadge: "vista mock · Fase 1",
+    cachedBadge: "fixture verificado · sin API",
+    liveBadge: "análisis real · no almacenado",
     evaluated: "dimensiones evaluadas",
     another: "Analizar otro CV",
     finding: "Hallazgo · interpretación",
-    evidence: "Evidencia · cita textual del CV ficticio",
+    evidence: "Evidencia · cita textual del CV",
     recommendation: "Recomendación accionable",
     positive: "+ positivo",
     negative: "− a mejorar",
@@ -107,7 +113,7 @@ const copy = {
     selectFile: "Select file",
     privacy: "Your CV is never stored. It is analyzed and discarded.",
     examplesLead: "or try a fictional CV — free",
-    fictionNote: "Fully fictional people and documents. Reviewed mock data, no model calls.",
+    fictionNote: "Fully fictional people and documents. Reviewed cached results, no model calls.",
     ready: "ready to analyze",
     remove: "Remove file",
     analyze: "Analyze CV",
@@ -126,11 +132,12 @@ const copy = {
     partial: "Partial result",
     scoreNote:
       "The score evaluates the document, not the person. It is a reproducible guide, not an absolute truth.",
-    mockBadge: "mock view · Phase 1",
+    cachedBadge: "reviewed fixture · no API",
+    liveBadge: "live analysis · not stored",
     evaluated: "dimensions evaluated",
     another: "Analyze another CV",
     finding: "Finding · interpretation",
-    evidence: "Evidence · verbatim fictional CV quote",
+    evidence: "Evidence · verbatim CV quote",
     recommendation: "Actionable recommendation",
     positive: "+ positive",
     negative: "− needs work",
@@ -150,7 +157,7 @@ const errorCopy = {
       icon: "∅",
       title: "Información insuficiente",
       message:
-        "La interfaz de upload está lista, pero el pipeline real se conecta en la Fase 4. Este archivo no fue leído ni enviado.",
+        "No hubo evidencia legible suficiente para publicar un puntaje general. El archivo ya fue descartado.",
       action: "Probar un CV ficticio",
       tone: "warning",
     },
@@ -188,7 +195,7 @@ const errorCopy = {
       icon: "∅",
       title: "Not enough information",
       message:
-        "The upload interface is ready, but the real pipeline arrives in Phase 4. This file was not read or sent.",
+        "There was not enough readable evidence to publish an overall score. The file has already been discarded.",
       action: "Try a fictional CV",
       tone: "warning",
     },
@@ -293,6 +300,25 @@ function initialExampleFor(state: PreviewState): FictionalExample | null {
   return null;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function apiErrorState(value: unknown): AppState {
+  if (!isRecord(value) || !isRecord(value.error)) return "technical_error";
+
+  const code = value.error.code;
+  if (
+    code === "file_too_large" ||
+    code === "insufficient" ||
+    code === "invalid_format"
+  ) {
+    return code;
+  }
+
+  return "technical_error";
+}
+
 export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
   const inputId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -305,12 +331,18 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
   const [dragActive, setDragActive] = useState(initialPreviewState === "dragging");
   const [selectedFile, setSelectedFile] = useState<FileSnapshot | null>(
     initialPreviewState === "selected"
-      ? { name: "cv-rivas.pdf", size: 1.2 * 1024 * 1024, type: "application/pdf" }
+      ? {
+          file: null,
+          name: "cv-rivas.pdf",
+          size: 1.2 * 1024 * 1024,
+          type: "application/pdf",
+        }
       : null,
   );
-  const [activeExample, setActiveExample] = useState<FictionalExample | null>(() =>
+  const [activeResult, setActiveResult] = useState<AnalysisPresentation | null>(() =>
     initialExampleFor(initialPreviewState),
   );
+  const [pendingExample, setPendingExample] = useState<FictionalExample | null>(null);
   const [progressStep, setProgressStep] = useState(0);
   const [openDimension, setOpenDimension] = useState(0);
   const t = copy[language];
@@ -331,23 +363,31 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
 
     const verifyTimer = window.setTimeout(() => setProgressStep(1), 650);
     const rubricTimer = window.setTimeout(() => setProgressStep(2), 1_300);
-    const resultTimer = window.setTimeout(() => {
-      setViewState(activeExample ? activeExample.status : "insufficient");
-    }, 2_100);
-
     return () => {
       window.clearTimeout(verifyTimer);
       window.clearTimeout(rubricTimer);
-      window.clearTimeout(resultTimer);
     };
-  }, [activeExample, initialPreviewState, viewState]);
+  }, [initialPreviewState, viewState]);
+
+  useEffect(() => {
+    if (viewState !== "loading" || !pendingExample) return;
+
+    const resultTimer = window.setTimeout(() => {
+      setActiveResult(pendingExample);
+      setPendingExample(null);
+      setViewState(pendingExample.status);
+    }, 900);
+
+    return () => window.clearTimeout(resultTimer);
+  }, [pendingExample, viewState]);
 
   const reset = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
     setViewState("idle");
     setDragActive(false);
     setSelectedFile(null);
-    setActiveExample(null);
+    setActiveResult(null);
+    setPendingExample(null);
     setProgressStep(0);
     setOpenDimension(0);
   };
@@ -361,8 +401,9 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
       return;
     }
 
-    setActiveExample(null);
-    setSelectedFile({ name: file.name, size: file.size, type: file.type });
+    setActiveResult(null);
+    setPendingExample(null);
+    setSelectedFile({ file, name: file.name, size: file.size, type: file.type });
     setViewState("selected");
   };
 
@@ -380,17 +421,73 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
 
   const selectExample = (example: FictionalExample) => {
     setLanguage(example.language);
-    setActiveExample(example);
+    setActiveResult(null);
+    setPendingExample(example);
     setSelectedFile(null);
     setOpenDimension(0);
     setProgressStep(0);
     setViewState("loading");
   };
 
-  const startSelectedFile = () => {
-    setActiveExample(null);
+  const startSelectedFile = async () => {
+    const upload = selectedFile?.file;
+    if (!upload) {
+      setViewState("insufficient");
+      return;
+    }
+
+    setActiveResult(null);
+    setPendingExample(null);
     setProgressStep(0);
     setViewState("loading");
+
+    const formData = new FormData();
+    formData.append("file", upload);
+
+    try {
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        body: formData,
+      });
+      const body: unknown = await response.json();
+
+      if (!response.ok) {
+        setViewState(apiErrorState(body));
+        return;
+      }
+
+      const extractionCandidate = isRecord(body) ? body.extraction : undefined;
+      const parsed = cvExtractionSchema.safeParse(extractionCandidate);
+      if (!parsed.success) {
+        setViewState("technical_error");
+        return;
+      }
+
+      const rubric = scoreExtraction(parsed.data);
+      const result = createAnalysisPresentation(parsed.data, rubric, {
+        documentName: upload.name,
+        fallbackLanguage: language,
+        level: language === "es" ? "CV propio" : "Your CV",
+        name: upload.name,
+        role: language === "es" ? "Documento subido" : "Uploaded document",
+        source: "live_upload",
+      });
+
+      if (!result) {
+        setViewState("insufficient");
+        return;
+      }
+
+      setLanguage(result.language);
+      setActiveResult(result);
+      setOpenDimension(0);
+      setViewState(result.status);
+    } catch {
+      setViewState("technical_error");
+    } finally {
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   const toggleTheme = () => {
@@ -400,7 +497,7 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
     window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
   };
 
-  const result = activeExample ?? initialExampleFor(viewState);
+  const result = activeResult ?? initialExampleFor(viewState);
   const documentFlow = viewState === "loading" || viewState === "partial" || viewState === "success";
 
   return (
@@ -446,14 +543,19 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
       <main id="top" className="main-content">
         {viewState === "loading" ? (
           <LoadingView
-            documentName={activeExample?.documentName ?? selectedFile?.name ?? "cv-ejemplo.pdf"}
+            documentName={
+              pendingExample?.documentName ??
+              activeResult?.documentName ??
+              selectedFile?.name ??
+              "cv-ejemplo.pdf"
+            }
             language={language}
             progressStep={progressStep}
           />
         ) : viewState === "success" || viewState === "partial" ? (
           result ? (
             <ResultView
-              example={result}
+              analysis={result}
               language={language}
               onReset={reset}
               openDimension={openDimension}
@@ -638,30 +740,32 @@ function LoadingView({
 }
 
 function ResultView({
-  example,
+  analysis,
   language,
   onReset,
   openDimension,
   onToggleDimension,
 }: {
-  example: FictionalExample;
+  analysis: AnalysisPresentation;
   language: DocumentLanguage;
   onReset: () => void;
   openDimension: number;
   onToggleDimension: (index: number) => void;
 }) {
   const t = copy[language];
-  const evaluated = example.dimensions.filter((dimension) => dimension.score !== null).length;
+  const evaluated = analysis.dimensions.filter((dimension) => dimension.score !== null).length;
+  const sourceBadge =
+    analysis.source === "cached_example" ? t.cachedBadge : t.liveBadge;
 
   return (
     <section className="result-layout" aria-labelledby="result-title">
-      <aside className={`score-summary is-${example.status}`}>
+      <aside className={`score-summary is-${analysis.status}`}>
         <p className="score-label" id="result-title">{t.overall}</p>
-        <ScoreMeter score={example.overallScore} />
-        <span className={`result-status is-${example.status}`}>
-          <i aria-hidden="true" />{example.status === "success" ? t.complete : t.partial}
+        <ScoreMeter score={analysis.overallScore} />
+        <span className={`result-status is-${analysis.status}`}>
+          <i aria-hidden="true" />{analysis.status === "success" ? t.complete : t.partial}
         </span>
-        <span className="mock-badge">{t.mockBadge}</span>
+        <span className="mock-badge">{sourceBadge}</span>
         <p className="score-note">{t.scoreNote}</p>
         <p className="evaluated-count">{evaluated}/5 {t.evaluated}</p>
         <button className="secondary-button full-width" type="button" onClick={onReset}>{t.another}</button>
@@ -670,12 +774,21 @@ function ResultView({
       <div className="dimensions-list">
         <div className="result-document-meta">
           <div>
-            <span>{example.language.toUpperCase()} · {example.level}</span>
-            <strong>{example.name} · {example.role}</strong>
+            <span>{analysis.language.toUpperCase()} · {analysis.level}</span>
+            <strong>{analysis.name} · {analysis.role}</strong>
           </div>
-          <span><i aria-hidden="true" />{language === "es" ? "documento ficticio" : "fictional document"}</span>
+          <span>
+            <i aria-hidden="true" />
+            {analysis.source === "cached_example"
+              ? language === "es"
+                ? "documento ficticio"
+                : "fictional document"
+              : language === "es"
+                ? "archivo descartado"
+                : "file discarded"}
+          </span>
         </div>
-        {example.dimensions.map((dimension, index) => (
+        {analysis.dimensions.map((dimension, index) => (
           <DimensionCard
             key={dimension.name}
             dimension={dimension}
@@ -723,7 +836,7 @@ function DimensionCard({
   open,
   onToggle,
 }: {
-  dimension: MockDimension;
+  dimension: PresentationDimension;
   language: DocumentLanguage;
   open: boolean;
   onToggle: () => void;

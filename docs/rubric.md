@@ -207,7 +207,8 @@ non-evaluable reasons; the rubric does not copy or alter personal CV content.
 - Inputs are not mutated.
 - No randomness, time, locale, model, browser state, or environment variable participates
   in scoring.
-- Phase 4 connects validated extraction to this function.
+- Phase 4 connects validated extraction to this function on the server and for cached
+  examples; the browser recomputes the rubric from the validated extraction it receives.
 - Phase 5 combines the returned audit data with the original evidence for presentation.
 - Changing any weight, outcome value, threshold, or rounding rule requires a documented
   rubric version change and regression-test review.

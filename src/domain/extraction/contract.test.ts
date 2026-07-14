@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createValidExtractionFixture } from "./contract.test-fixture";
-import { cvExtractionSchema } from "./contract";
+import { containsContactValue, cvExtractionSchema } from "./contract";
 
 describe("cvExtractionSchema", () => {
   it("accepts a complete evidence-backed extraction with no scores", () => {
@@ -93,5 +93,27 @@ describe("cvExtractionSchema", () => {
     };
 
     expect(cvExtractionSchema.safeParse(incomplete).success).toBe(false);
+  });
+
+  it.each([
+    "candidate@example.com",
+    "https://portfolio.example.com",
+    "github.com/candidate",
+    "+54 11 5555 1234",
+  ])("detects contact values before they can reach the response: %s", (value) => {
+    expect(containsContactValue(value)).toBe(true);
+  });
+
+  it("rejects contact values in evidence and explanatory text", () => {
+    const evidenceLeak = createValidExtractionFixture();
+    evidenceLeak.dimensions.atsStructure.completeContactInformation.evidence[0].quote =
+      "candidate@example.com";
+
+    const explanationLeak = createValidExtractionFixture();
+    explanationLeak.dimensions.atsStructure.completeContactInformation.explanation =
+      "The CV lists candidate@example.com.";
+
+    expect(cvExtractionSchema.safeParse(evidenceLeak).success).toBe(false);
+    expect(cvExtractionSchema.safeParse(explanationLeak).success).toBe(false);
   });
 });

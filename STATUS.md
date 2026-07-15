@@ -7,11 +7,11 @@ phase marked `IN_PROGRESS`; do not begin the next phase automatically.
 
 ## Active phase
 
-**No phase is active. Phase 8 — SEO review and improvement is `COMPLETED` (2026-07-14).**
+**No phase is active. Phase 8 maintenance hotfix — Turbopack favicon compatibility is
+`COMPLETED` (completed 2026-07-14).**
 
 The SEO release gate is met and the updated app is publicly deployed on Railway at
-<https://cvlens.up.railway.app>. The next eligible phase is Phase 9 (grounding against job
-description). It must be activated explicitly before changing code; do not begin it
+<https://cvlens.up.railway.app>. Phase 10 remains `NOT_STARTED` and must not begin
 automatically.
 
 The Phase 7 `CVLENS_SITE_URL` follow-up is resolved: the variable now points at
@@ -30,9 +30,9 @@ that domain.
 | 5 | Results, evidence, and recommendations | COMPLETED | MVP day 2; completed 2026-07-14 |
 | 6 | Hardening | COMPLETED | MVP day 2; completed 2026-07-14 |
 | 7 | Tests, fixtures, and launch | COMPLETED | MVP day 2; completed 2026-07-14 |
-| 8 | SEO review and improvement | COMPLETED | Launch polish; completed 2026-07-14 |
-| 9 | Grounding against job description | NOT_STARTED | HIGH post-MVP priority |
-| 10 | Generate three CV versions | NOT_STARTED | Post-deploy; blocked until Phase 9 is complete |
+| 8 | SEO review and improvement | COMPLETED | Launch polish + Turbopack favicon hotfix; completed 2026-07-14 |
+| 9 | Grounding against job description | COMPLETED | Completed 2026-07-14 |
+| 10 | Generate three CV versions | NOT_STARTED | Next eligible; not active |
 
 ## Phase acceptance criteria
 
@@ -843,9 +843,174 @@ introduced.
 - The production deployment again came from the local working tree and remains uncommitted;
   commit/push are intentionally left to the maintainer.
 
+## Phase 8 handoff — fulfilled
+
+Phase 8 is complete and deployed. Its handoff was fulfilled by the Phase 9 implementation
+below.
+
+## Phase 9 work log
+
+### Files changed
+
+- Added the bounded optional job-description policy in
+  `src/domain/job-match/job-description.ts`: omitted/blank input preserves the CV-only path;
+  supplied input is trimmed and limited to 40–6,000 characters. Non-string or out-of-range
+  multipart input is rejected before a provider call.
+- Added the strict cited grounding contract in `src/domain/job-match/contract.ts` and the
+  combined CV/job structured-output contract in `src/domain/job-match/grounded-contract.ts`.
+  Each of at most twelve material requirements needs verbatim job evidence; positive or
+  partial coverage needs verbatim CV evidence; `not_demonstrated` means only absent evidence
+  in this CV; `not_evaluable` requires an explicit reason. Scores and contact values are
+  rejected.
+- Added the pure deterministic job-match engine in `src/domain/job-match/score.ts`:
+  required/preferred/unspecified weights are 2/1/1; covered/partial/not-demonstrated points
+  are 100/50/0; non-evaluable requirements are excluded. This result is separate from and
+  does not modify the existing CV-quality rubric.
+- Extended the Anthropic adapter and prompts with a grounded extraction path, a 9,000-token
+  output cap, explicit prompt-injection/protected-attribute/contact/hiring-prediction rules,
+  exact requirement-quote validation, and exactly one independent reinspection after a
+  schema or grounding failure. The existing no-job extraction path is unchanged.
+- Added `src/server/analysis/select-extraction.ts` so validated absence selects only the
+  original extractor and a supplied job selects only the grounded extractor. Updated the
+  upload pipeline and API result to carry an optional match while retaining immediate CV
+  buffer disposal, safe errors, rate limiting, deadlines, and request headers.
+- Added the optional textarea and bounded validation to `src/components/cvlens-app.tsx`;
+  live responses are schema-validated and rescored in the browser. Added a separate
+  evidence-expandable job-match card, responsive dark/light styling, explicit absence-of-
+  evidence language, and deterministic recommendations that prohibit invented experience.
+- Added three fictional job fixtures under `fixtures/jobs/` and reviewed cached comparisons
+  in `src/data/cached-job-match-extractions.ts`. The existing Alex, Marina, and Dayo examples
+  now show paired job matches without a network/model call; their CV-quality results remain
+  unchanged.
+- Added tests across `src/domain/job-match/`, `src/data/`, `src/server/analysis/`, the
+  Anthropic reinspection boundary, and upload pipeline. Added `docs/job-grounding.md` with
+  privacy, contract, scoring, fixtures, recommendations, and verification details; updated
+  `README.md`.
+
+### Commands and validation
+
+- `pnpm typecheck` — passed (`tsc --noEmit`, strict TypeScript, exit 0).
+- `pnpm lint` — passed (`eslint .`, zero warnings/errors, exit 0).
+- `pnpm test` — passed: 30 test files, 158 tests, exit 0. Coverage includes bounds,
+  cross-field schema rules, contact rejection, exact job quotes, one reinspection,
+  deterministic weights/renormalization, source-backed fixtures, CV-only/grounded provider
+  selection, and buffer disposal.
+- `pnpm build` — passed with Next.js 16.2.10/webpack, exit 0; compilation, TypeScript, page
+  generation, and build traces completed. `/`, `/api/analyze`, `/health`, icon/social routes,
+  `/robots.txt`, and `/sitemap.xml` compiled; Proxy middleware compiled.
+- `git diff --check` — passed before the final status-only edit; no whitespace errors.
+- Local production browser smoke (`pnpm start`, `127.0.0.1:3002`) — desktop and 390×844
+  result layouts had no horizontal overflow in dark or light themes; `<html lang>` followed
+  the EN cached result; the heading hierarchy remained one result `h1`, job/dimension `h2`s,
+  and finding `h3`s.
+- Optional-input manual check — blank input remained valid; a 15-character non-empty input
+  displayed the 40-character validation error and the 6,000-character counter.
+- Cached-flow manual check — Alex completed without a live provider call, retained the
+  existing CV-quality score of 71/100, and displayed a separate deterministic job-match
+  score of 75/100. The expanded Next.js requirement showed its exact job quote, exact CV
+  skills quote, partial explanation, and anti-invention recommendation.
+- Browser console — zero warnings and zero errors after landing, validation, cached result,
+  evidence expansion, responsive resize, and both theme toggles.
+
+### Hand-verified deterministic job-match fixtures
+
+| CV / job pair | Coverage states | Score | Evidence coverage |
+| --- | --- | ---: | ---: |
+| Alex / Junior Frontend Developer | 2 covered, 1 partial, 1 not demonstrated | 75 | 100% |
+| Marina / Senior Backend Engineer | 2 covered, 1 partial, 1 not demonstrated | 71 | 100% |
+| Dayo / Full-stack Engineer | 3 covered, 1 not demonstrated | 86 | 100% |
+
+Every requirement quote is asserted against its fictional job source and every claimed CV
+quote against its fictional CV source in `src/data/cached-job-match-extractions.test.ts`.
+
+### Decisions
+
+- Job match and CV quality remain distinct results. A strong match cannot improve a weak CV
+  score, and a polished CV cannot manufacture job coverage.
+- Priority is categorical extraction only; numeric weights live exclusively in pure
+  TypeScript. `required`/`preferred` are used only when explicit job wording supports them;
+  otherwise priority is `unspecified`.
+- `not_demonstrated` is absence of evidence in the submitted CV, never a statement about the
+  person. Recommendations tell the user to add an example only when true and verifiable,
+  otherwise preserve an honest gap.
+- The job description shares the existing request-local, no-storage/no-logging privacy
+  boundary. It adds no database, analytics, tracker, external asset, client secret, or new
+  public metric dimension.
+- The 6,000-character job bound fits inside the existing 8 MiB plus 64 KiB multipart request
+  allowance, so the hardened content-length boundary was not expanded.
+- Phase 9 was verified locally and was not deployed as part of this turn; the public Railway
+  service therefore remains on the completed Phase 8 release until the maintainer chooses a
+  deployment action.
+
+### Known debt / blockers
+
+- No Phase 9 product blocker.
+- Exact job quotes are mechanically checked against submitted text. Exact CV evidence
+  remains enforced by the model contract, reviewed fixtures, and reinspection, because the
+  multimodal upload adapter does not retain a second plain-text copy of the CV for substring
+  comparison.
+- A live provider call was not used for the manual smoke, avoiding unnecessary processing
+  of uploaded content; the grounded adapter is covered at schema/reinspection/selection
+  boundaries and the three cached comparisons are fully source-verified.
+- The production deployment still comes from the Phase 8 working tree. Phase 9 changes are
+  uncommitted and undeployed; commit, push, and deploy are intentionally left to the
+  maintainer.
+
+## Phase 8 maintenance hotfix — Turbopack favicon compatibility
+
+### Files changed
+
+- Updated `scripts/generate-app-icons.mjs` to add an opaque alpha channel after flattening
+  the brand SVG and to fail generation unless Sharp reports four channels.
+- Regenerated `src/app/favicon.ico`, `src/app/icon.png`, and `src/app/apple-icon.png` as
+  RGBA assets. The ICO still contains the intended 16, 32, and 48 px PNG entries.
+- No Phase 9 domain, API, UI, fixture, privacy, or scoring behavior changed in this hotfix.
+  The generated `next-env.d.ts` development-path change was already present from the
+  maintainer's running dev server and was preserved without manual editing.
+
+### Commands and validation
+
+- `node scripts/generate-app-icons.mjs` — passed, exit 0; the generator's four-channel
+  assertion passed for every generated size.
+- `file src/app/favicon.ico src/app/icon.png src/app/apple-icon.png` — all assets identified
+  as 8-bit RGBA. Direct Sharp inspection of every ICO entry reported PNG with 4 channels at
+  16, 32, and 48 px.
+- `pnpm typecheck` — passed (`tsc --noEmit`, strict TypeScript, exit 0).
+- `pnpm lint` — passed (`eslint .`, zero warnings/errors, exit 0).
+- `pnpm test` — passed: 30 test files, 158 tests, exit 0.
+- `pnpm build` — passed with Next.js 16.2.10/webpack, exit 0; all ten app routes generated
+  and Proxy middleware compiled.
+- Turbopack development smoke — the maintainer's existing `localhost:3001` server changed
+  from the reported ICO decode failure to `✓ Compiled in 132ms` after regeneration. A clean
+  restart reached `Ready in 745ms`; `/` returned HTTP 200.
+- Manual browser asset check — `http://127.0.0.1:3001/favicon.ico` loaded as a complete
+  48×48 image, while the home rendered normally instead of showing the build-error overlay.
+- `git diff --check` — passed with no whitespace errors.
+
+### Decisions
+
+- Keep PNG-compressed entries in the multiresolution ICO, but emit RGBA rather than RGB so
+  the same asset works in both the production webpack build and the stricter Turbopack
+  development decoder.
+- Make channel validation part of the reproducible generator so a future regeneration
+  cannot silently reintroduce this compatibility regression.
+- The hotfix reopens and closes only Phase 8 maintenance. Phase 10 was not activated.
+
+### Known debt / blockers
+
+- No favicon blocker remains.
+- Development mode still reports the pre-existing React nonce hydration warning because
+  the browser exposes nonce attributes as empty while the server-rendered prop contains the
+  CSP nonce. This is independent of favicon decoding; production nonce/header verification
+  remains the Phase 8 authority and was not weakened.
+- The RGBA hotfix is local and not deployed. Production continues to serve the Phase 8
+  release until the maintainer chooses to deploy the accumulated Phase 9 and hotfix changes.
+
 ## Current handoff
 
-Phase 8 is complete and deployed. Activate only Phase 9 next (grounding against job
-description); do not begin it automatically. Preserve the complete SEO metadata and icon
-routes, CSP nonce path, extraction/scoring boundary, cached examples, hardened request
-boundary, one-replica/no-database architecture, privacy disclosure, and no-tracking policy.
+Phase 9 and the Phase 8 Turbopack favicon hotfix are complete. No phase is active. Activate
+only Phase 10 next if explicitly asked; do not begin it automatically. Preserve the RGBA
+icon generator assertion, separate CV-quality/job-match scores, strict cited contracts,
+deterministic scoring modules, no-invention recommendations, cached example path, hardened
+request boundary, no-storage/no-logging policy, CSP nonce and SEO metadata,
+one-replica/no-database architecture, and absence of analytics or external assets.

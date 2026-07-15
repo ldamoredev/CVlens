@@ -5,8 +5,9 @@ auditable document-quality analysis. A model extracts structured, cited findings
 deterministic TypeScript code applies a documented rubric to calculate five dimension
 scores and one overall score.
 
-**Phases 0–8 are complete; the MVP is live at <https://cvlens.up.railway.app>. Phase 9 is
-not active.** See `STATUS.md` before contributing and activate only the next eligible phase.
+**Phases 0–9 are complete; the MVP is live at <https://cvlens.up.railway.app>. Phase 10 is
+not active.** See `STATUS.md` before contributing and activate only the next eligible
+phase.
 
 ## Architecture principle
 
@@ -30,6 +31,9 @@ The launch regression corpus, sub-15-second demo path, portfolio copy, LinkedIn 
 the Railway deploy runbook are documented in [`docs/launch.md`](docs/launch.md).
 The production metadata, crawl routes, CSP-compatible structured data, and Lighthouse
 before/after audit are documented in [`docs/seo.md`](docs/seo.md).
+The optional job-description boundary, cited coverage contract, separate deterministic
+match score, recommendations, and hand-verified fixture pairs are documented in
+[`docs/job-grounding.md`](docs/job-grounding.md).
 
 ## Interface themes
 
@@ -90,12 +94,12 @@ target for subsequent phases.
 
 ## Privacy and safety
 
-CVs contain personal data. CVLens does not store uploads; the selected document is sent
-to Anthropic for the requested analysis and its request-local buffers are discarded when
-processing finishes. Application code must never log CV text, filenames, contact data,
-provider payloads, or raw source addresses, comment on protected attributes, or invent
-content. Bundled examples are fictional and served from reviewed fixtures without live
-model calls.
+CVs and job descriptions can contain personal or confidential data. CVLens stores neither;
+the selected inputs are sent to Anthropic only for the requested analysis and request-local
+CV buffers are discarded when processing finishes. Application code must never log CV or
+job-description text, filenames, contact data, provider payloads, or raw source addresses,
+comment on protected attributes, or invent content. Bundled examples are fictional and
+served from reviewed fixtures without live model calls.
 
 ## Project coordination
 

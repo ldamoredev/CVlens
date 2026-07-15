@@ -20,6 +20,13 @@ import {
 } from "@/data/fictional-examples";
 import { createAnalysisPresentation } from "@/data/analysis-presentation";
 import { cvExtractionSchema } from "@/domain/extraction/contract";
+import { jobMatchExtractionSchema } from "@/domain/job-match/contract";
+import {
+  MAX_JOB_DESCRIPTION_CHARACTERS,
+  MIN_JOB_DESCRIPTION_CHARACTERS,
+  validateOptionalJobDescription,
+} from "@/domain/job-match/job-description";
+import { scoreJobMatch } from "@/domain/job-match/score";
 import { scoreExtraction } from "@/domain/rubric/rubric";
 import { apiErrorState } from "@/lib/api-error-state";
 import {
@@ -59,6 +66,11 @@ const copy = {
     selectFile: "Seleccionar archivo",
     privacy:
       "CVLens no guarda tu CV. Lo envía a Anthropic para analizarlo y elimina su copia temporal al terminar.",
+    jobLabel: "Oferta laboral (opcional)",
+    jobPlaceholder: "Pegá aquí los requisitos y responsabilidades del puesto…",
+    jobHelp:
+      "Si la agregás, comparamos requisitos explícitos con citas del CV. No se almacena ni modifica el puntaje del documento.",
+    jobTooShort: `Ingresá al menos ${MIN_JOB_DESCRIPTION_CHARACTERS} caracteres o dejá el campo vacío.`,
     examplesLead: "o probá un CV ficticio — sin costo",
     fictionNote:
       "Personas y documentos completamente ficticios. Resultados cacheados y revisados, sin llamadas al modelo.",
@@ -96,6 +108,15 @@ const copy = {
     finding: "Hallazgo · interpretación",
     evidence: "Evidencia · cita textual del CV",
     recommendation: "Recomendación accionable",
+    matchTitle: "Ajuste al puesto",
+    matchScore: "Cobertura de requisitos",
+    matchScoreNote:
+      "Resultado separado del puntaje del CV. “No demostrado” significa únicamente que este documento no aporta evidencia.",
+    requirementEvidence: "Requisito · cita textual de la oferta",
+    cvMatchEvidence: "Soporte · cita textual del CV",
+    noCvMatchEvidence: "No se encontró soporte textual en este CV.",
+    matchFinding: "Comparación basada en evidencia",
+    priority: "Prioridad",
     positive: "+ positivo",
     negative: "− a mejorar",
     partialDimension: "◐ parcial",
@@ -124,6 +145,11 @@ const copy = {
     selectFile: "Select file",
     privacy:
       "CVLens does not store your CV. It sends it to Anthropic for analysis and deletes its temporary copy when finished.",
+    jobLabel: "Job description (optional)",
+    jobPlaceholder: "Paste the role requirements and responsibilities here…",
+    jobHelp:
+      "When provided, explicit requirements are compared with cited CV evidence. It is not stored and does not change the document score.",
+    jobTooShort: `Enter at least ${MIN_JOB_DESCRIPTION_CHARACTERS} characters or leave the field empty.`,
     examplesLead: "or try a fictional CV — free",
     fictionNote: "Fully fictional people and documents. Reviewed cached results, no model calls.",
     ready: "ready to analyze",
@@ -160,6 +186,15 @@ const copy = {
     finding: "Finding · interpretation",
     evidence: "Evidence · verbatim CV quote",
     recommendation: "Actionable recommendation",
+    matchTitle: "Job match",
+    matchScore: "Requirement coverage",
+    matchScoreNote:
+      "Separate from the CV score. “Not demonstrated” means only that this document does not provide supporting evidence.",
+    requirementEvidence: "Requirement · verbatim job quote",
+    cvMatchEvidence: "Support · verbatim CV quote",
+    noCvMatchEvidence: "No textual support was found in this CV.",
+    matchFinding: "Evidence-based comparison",
+    priority: "Priority",
     positive: "+ positive",
     negative: "− needs work",
     partialDimension: "◐ partial",
@@ -350,6 +385,7 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
     initialExampleFor(initialPreviewState),
   );
   const [pendingExample, setPendingExample] = useState<FictionalExample | null>(null);
+  const [jobDescription, setJobDescription] = useState("");
   const [progressStep, setProgressStep] = useState(0);
   const [openDimension, setOpenDimension] = useState(0);
   const t = copy[language];
@@ -399,6 +435,7 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
     setSelectedFile(null);
     setActiveResult(null);
     setPendingExample(null);
+    setJobDescription("");
     setProgressStep(0);
     setOpenDimension(0);
   };
@@ -454,6 +491,11 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
 
     const formData = new FormData();
     formData.append("file", upload);
+    const validatedJobDescription = validateOptionalJobDescription(jobDescription);
+    if (!validatedJobDescription.ok) return;
+    if (validatedJobDescription.value !== null) {
+      formData.append("jobDescription", validatedJobDescription.value);
+    }
 
     try {
       const response = await fetch("/api/analyze", {
@@ -475,6 +517,17 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
       }
 
       const rubric = scoreExtraction(parsed.data);
+      const submittedJob = validatedJobDescription.value !== null;
+      const jobMatchCandidate = isRecord(body) && isRecord(body.jobMatch)
+        ? body.jobMatch.extraction
+        : undefined;
+      const parsedJobMatch = submittedJob
+        ? jobMatchExtractionSchema.safeParse(jobMatchCandidate)
+        : null;
+      if (parsedJobMatch !== null && !parsedJobMatch.success) {
+        setViewState("technical_error");
+        return;
+      }
       const resultLanguage: DocumentLanguage =
         parsed.data.document.language === "undetermined"
           ? language
@@ -486,7 +539,13 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
         name: upload.name,
         role: resultLanguage === "es" ? "Documento subido" : "Uploaded document",
         source: "live_upload",
-      });
+      }, parsedJobMatch?.success
+        ? {
+            extraction: parsedJobMatch.data,
+            jobTitle: resultLanguage === "es" ? "Oferta comparada" : "Compared job description",
+            score: scoreJobMatch(parsedJobMatch.data),
+          }
+        : null);
 
       if (!result) {
         setViewState("insufficient");
@@ -514,6 +573,7 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
 
   const result = activeResult ?? initialExampleFor(viewState);
   const documentFlow = viewState === "loading" || viewState === "partial" || viewState === "success";
+  const jobDescriptionValidation = validateOptionalJobDescription(jobDescription);
 
   return (
     <div className="app-shell">
@@ -591,12 +651,13 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
             {isErrorState(viewState) ? (
               <StatusPanel state={viewState} language={language} onReset={reset} />
             ) : viewState === "selected" && selectedFile ? (
-              <SelectedFilePanel
+                <SelectedFilePanel
                 file={selectedFile}
                 language={language}
                 onAnalyze={startSelectedFile}
-                onRemove={reset}
-              />
+                  onRemove={reset}
+                  analyzeDisabled={!jobDescriptionValidation.ok}
+                />
             ) : (
               <div
                 className={`dropzone${dragActive ? " is-dragging" : ""}`}
@@ -622,6 +683,15 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
                 <p className="privacy-copy"><ShieldIcon aria-hidden="true" />{t.privacy}</p>
               </div>
             )}
+
+            {!isErrorState(viewState) ? (
+              <JobDescriptionField
+                language={language}
+                value={jobDescription}
+                onChange={setJobDescription}
+                valid={jobDescriptionValidation.ok}
+              />
+            ) : null}
 
             <section className="examples-section" aria-labelledby="examples-title">
               <h2 className="examples-lead" id="examples-title">{t.examplesLead}</h2>
@@ -672,11 +742,13 @@ function SelectedFilePanel({
   language,
   onAnalyze,
   onRemove,
+  analyzeDisabled,
 }: {
   file: FileSnapshot;
   language: DocumentLanguage;
   onAnalyze: () => void;
   onRemove: () => void;
+  analyzeDisabled: boolean;
 }) {
   const t = copy[language];
 
@@ -691,11 +763,49 @@ function SelectedFilePanel({
       <button className="icon-button" type="button" onClick={onRemove} aria-label={t.remove}>
         <CloseIcon aria-hidden="true" />
       </button>
-      <button className="primary-button selected-analyze" type="button" onClick={onAnalyze}>
+      <button className="primary-button selected-analyze" type="button" onClick={onAnalyze} disabled={analyzeDisabled}>
         {t.analyze}
       </button>
       <p className="selected-privacy"><ShieldIcon aria-hidden="true" />{t.privacy}</p>
     </div>
+  );
+}
+
+function JobDescriptionField({
+  language,
+  onChange,
+  valid,
+  value,
+}: {
+  language: DocumentLanguage;
+  onChange: (value: string) => void;
+  valid: boolean;
+  value: string;
+}) {
+  const t = copy[language];
+  const descriptionId = useId();
+  const helpId = `${descriptionId}-help`;
+  const errorId = `${descriptionId}-error`;
+
+  return (
+    <section className="job-description-field" aria-labelledby={`${descriptionId}-label`}>
+      <div className="job-description-heading">
+        <label id={`${descriptionId}-label`} htmlFor={descriptionId}>{t.jobLabel}</label>
+        <span>{value.length}/{MAX_JOB_DESCRIPTION_CHARACTERS}</span>
+      </div>
+      <textarea
+        id={descriptionId}
+        value={value}
+        maxLength={MAX_JOB_DESCRIPTION_CHARACTERS}
+        rows={5}
+        placeholder={t.jobPlaceholder}
+        aria-describedby={`${helpId}${valid ? "" : ` ${errorId}`}`}
+        aria-invalid={!valid}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <p id={helpId}>{t.jobHelp}</p>
+      {!valid ? <p className="field-error" id={errorId}>{t.jobTooShort}</p> : null}
+    </section>
   );
 }
 
@@ -809,6 +919,9 @@ function ResultView({
                 : "file discarded"}
           </span>
         </div>
+        {analysis.jobMatch ? (
+          <JobMatchCard analysis={analysis.jobMatch} language={language} />
+        ) : null}
         {analysis.dimensions.map((dimension, index) => (
           <DimensionCard
             key={dimension.name}
@@ -819,6 +932,74 @@ function ResultView({
           />
         ))}
       </div>
+    </section>
+  );
+}
+
+function JobMatchCard({
+  analysis,
+  language,
+}: {
+  analysis: NonNullable<AnalysisPresentation["jobMatch"]>;
+  language: DocumentLanguage;
+}) {
+  const t = copy[language];
+
+  return (
+    <section className="job-match-card" aria-labelledby="job-match-title">
+      <div className="job-match-summary">
+        <div>
+          <p className="eyebrow">{t.matchTitle}</p>
+          <h2 id="job-match-title">{analysis.jobTitle}</h2>
+          <p>{t.matchScoreNote}</p>
+        </div>
+        <div className="job-match-score" aria-label={`${t.matchScore}: ${analysis.coverageScore ?? "—"} / 100`}>
+          <strong>{analysis.coverageScore ?? "—"}</strong>
+          <span>/ 100</span>
+          <small>{t.matchScore}</small>
+        </div>
+      </div>
+      <p className="job-match-coverage">
+        {analysis.requirements.length} {language === "es" ? "requisitos citados" : "cited requirements"} · {analysis.evidenceCoveragePercent}% {t.coverage}
+      </p>
+      <ol className="job-requirement-list">
+        {analysis.requirements.map((requirement, index) => (
+          <li className={`job-requirement is-${requirement.effect}`} key={`${requirement.requirement}-${index}`}>
+            <details>
+              <summary>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <strong>{requirement.requirement}</strong>
+                <em>{requirement.coverageLabel}</em>
+              </summary>
+              <div className="job-requirement-detail">
+                <p className="requirement-priority">{t.priority} · {requirement.priorityLabel}</p>
+                <blockquote>
+                  <p className="detail-label">{t.requirementEvidence}</p>
+                  <p>“{requirement.requirementEvidence.quote}”</p>
+                  <cite>{t.citedAt} · {requirement.requirementEvidence.location}</cite>
+                </blockquote>
+                <div>
+                  <p className="detail-label">{t.matchFinding}</p>
+                  <p>{requirement.explanation}</p>
+                </div>
+                {requirement.cvEvidence.length > 0 ? requirement.cvEvidence.map((evidence, evidenceIndex) => (
+                  <blockquote className="job-cv-evidence" key={`${evidence.location}-${evidenceIndex}`}>
+                    <p className="detail-label">{t.cvMatchEvidence}</p>
+                    <p>“{evidence.quote}”</p>
+                    <cite>{t.citedAt} · {evidence.location}</cite>
+                  </blockquote>
+                )) : (
+                  <p className="job-no-evidence">{requirement.notEvaluableReason ?? t.noCvMatchEvidence}</p>
+                )}
+                <div className="finding-recommendation">
+                  <p className="detail-label is-accent">{t.recommendation}</p>
+                  <p>{requirement.recommendation}</p>
+                </div>
+              </div>
+            </details>
+          </li>
+        ))}
+      </ol>
     </section>
   );
 }

@@ -8,6 +8,14 @@ import type {
   RubricResult,
   ScoreState,
 } from "../domain/rubric/rubric";
+import type {
+  JobMatchExtraction,
+  JobRequirementMatch,
+} from "../domain/job-match/contract";
+import type {
+  JobMatchScore,
+  JobMatchScoreState,
+} from "../domain/job-match/score";
 
 export type DocumentLanguage = "en" | "es";
 export type ResultStatus = "partial" | "success";
@@ -43,11 +51,42 @@ export interface AnalysisPresentation {
   documentName: string;
   language: DocumentLanguage;
   level: string;
+  jobMatch: JobMatchPresentation | null;
   name: string;
   overallScore: number;
   role: string;
   source: AnalysisSource;
   status: ResultStatus;
+}
+
+export interface PresentationJobRequirement {
+  coverage: JobRequirementMatch["coverage"];
+  coverageLabel: string;
+  cvEvidence: JobRequirementMatch["cvEvidence"];
+  effect: FindingEffect;
+  explanation: string;
+  notEvaluableReason: string | null;
+  points: number | null;
+  priority: JobRequirementMatch["priority"];
+  priorityLabel: string;
+  recommendation: string;
+  requirement: string;
+  requirementEvidence: JobRequirementMatch["requirementEvidence"];
+  weight: number;
+}
+
+export interface JobMatchPresentation {
+  coverageScore: number | null;
+  evidenceCoveragePercent: number;
+  jobTitle: string;
+  requirements: readonly PresentationJobRequirement[];
+  state: JobMatchScoreState;
+}
+
+export interface JobMatchPresentationInput {
+  extraction: JobMatchExtraction;
+  jobTitle: string;
+  score: JobMatchScore;
 }
 
 export interface PresentationMetadata {
@@ -256,6 +295,84 @@ const outcomeLabels: Record<CriterionFinding["outcome"], LocalizedText> = {
   not_evaluable: { en: "Not evaluable", es: "No evaluable" },
 };
 
+const jobCoverageLabels: Record<JobRequirementMatch["coverage"], LocalizedText> = {
+  covered: { en: "Covered", es: "Cubierto" },
+  partial: { en: "Partial", es: "Parcial" },
+  not_demonstrated: { en: "Not demonstrated in CV", es: "No demostrado en el CV" },
+  not_evaluable: { en: "Not evaluable", es: "No evaluable" },
+};
+
+const jobPriorityLabels: Record<JobRequirementMatch["priority"], LocalizedText> = {
+  required: { en: "Required", es: "Obligatorio" },
+  preferred: { en: "Preferred", es: "Deseable" },
+  unspecified: { en: "Priority unspecified", es: "Prioridad no indicada" },
+};
+
+function jobRequirementRecommendation(
+  coverage: JobRequirementMatch["coverage"],
+  language: DocumentLanguage,
+): string {
+  if (coverage === "covered") {
+    return language === "es"
+      ? "Priorizá la evidencia citada al adaptar el CV y conservá exactamente su alcance; no amplíes la experiencia documentada."
+      : "Prioritize the cited evidence when tailoring the CV and preserve its exact scope; do not broaden the documented experience.";
+  }
+
+  if (coverage === "partial") {
+    return language === "es"
+      ? "Aclarar la conexión con este requisito solo si la evidencia citada la respalda. No afirmes la parte que el CV todavía no demuestra."
+      : "Clarify the connection to this requirement only where the cited evidence supports it. Do not claim the part the CV does not yet demonstrate.";
+  }
+
+  if (coverage === "not_demonstrated") {
+    return language === "es"
+      ? "No agregues este requisito como experiencia salvo que sea verdadero. Si sí lo es, incorporá un ejemplo verificable; si no, mantenelo como brecha honesta."
+      : "Do not add this requirement as experience unless it is true. If it is, add a verifiable example; otherwise keep it as an honest gap.";
+  }
+
+  return language === "es"
+    ? "Revisá la ambigüedad indicada y agregá contexto únicamente si es verdadero y verificable."
+    : "Review the stated ambiguity and add context only when it is true and verifiable.";
+}
+
+function createJobMatchPresentation(
+  input: JobMatchPresentationInput,
+  language: DocumentLanguage,
+): JobMatchPresentation {
+  return {
+    coverageScore: input.score.coverageScore,
+    evidenceCoveragePercent: input.score.evidenceCoveragePercent,
+    jobTitle: input.jobTitle,
+    requirements: input.extraction.requirements.map((requirement, index) => {
+      const scored = input.score.requirements[index];
+      if (!scored) {
+        throw new Error(`Missing deterministic score for job requirement ${index}.`);
+      }
+
+      return {
+        coverage: requirement.coverage,
+        coverageLabel: jobCoverageLabels[requirement.coverage][language],
+        cvEvidence: requirement.cvEvidence,
+        effect: requirement.coverage === "covered"
+          ? "positive"
+          : requirement.coverage === "not_evaluable"
+            ? "not_evaluable"
+            : "negative",
+        explanation: requirement.explanation,
+        notEvaluableReason: requirement.notEvaluableReason,
+        points: scored.points,
+        priority: requirement.priority,
+        priorityLabel: jobPriorityLabels[requirement.priority][language],
+        recommendation: jobRequirementRecommendation(requirement.coverage, language),
+        requirement: requirement.requirement,
+        requirementEvidence: requirement.requirementEvidence,
+        weight: scored.weight,
+      };
+    }),
+    state: input.score.state,
+  };
+}
+
 function effectFor(outcome: CriterionFinding["outcome"]): FindingEffect {
   if (outcome === "meets") return "positive";
   if (outcome === "not_evaluable") return "not_evaluable";
@@ -355,6 +472,7 @@ export function createAnalysisPresentation(
   extraction: CvExtraction,
   rubric: RubricResult,
   metadata: PresentationMetadata,
+  jobMatch: JobMatchPresentationInput | null = null,
 ): AnalysisPresentation | null {
   if (rubric.overallScore === null) return null;
 
@@ -371,6 +489,9 @@ export function createAnalysisPresentation(
     documentName: metadata.documentName,
     language,
     level: metadata.level,
+    jobMatch: jobMatch === null
+      ? null
+      : createJobMatchPresentation(jobMatch, language),
     name: metadata.name,
     overallScore: rubric.overallScore,
     role: metadata.role,

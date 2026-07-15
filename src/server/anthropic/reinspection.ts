@@ -2,8 +2,18 @@ import {
   cvExtractionSchema,
   type CvExtraction,
 } from "../../domain/extraction/contract";
+import {
+  validateRequirementQuotes,
+} from "../../domain/job-match/contract";
+import {
+  groundedAnalysisExtractionSchema,
+  type GroundedAnalysisExtraction,
+} from "../../domain/job-match/grounded-contract";
 
-import { buildReinspectionPrompt } from "./prompts";
+import {
+  buildGroundedReinspectionPrompt,
+  buildReinspectionPrompt,
+} from "./prompts";
 
 export interface ExtractionValidationIssue {
   path: string;
@@ -48,6 +58,38 @@ export function parseExtractionOutput(value: unknown): CvExtraction {
   return result.data;
 }
 
+export function parseGroundedExtractionOutput(
+  value: unknown,
+  jobDescription: string,
+): GroundedAnalysisExtraction {
+  const parsedJson = parseJson(value);
+  const result = groundedAnalysisExtractionSchema.safeParse(parsedJson);
+
+  if (!result.success) {
+    throw new ExtractionValidationError(
+      result.error.issues.map((issue) => ({
+        path: issue.path.length > 0 ? issue.path.join(".") : "$",
+        code: issue.code,
+      })),
+    );
+  }
+
+  const quoteValidation = validateRequirementQuotes(
+    jobDescription,
+    result.data.jobMatch,
+  );
+  if (!quoteValidation.valid) {
+    throw new ExtractionValidationError(
+      quoteValidation.invalidRequirementIndexes.map((index) => ({
+        path: `jobMatch.requirements.${index}.requirementEvidence.quote`,
+        code: "not_verbatim_job_evidence",
+      })),
+    );
+  }
+
+  return result.data;
+}
+
 export interface ExtractionAttempts {
   initial: () => Promise<unknown>;
   reinspect: (prompt: string) => Promise<unknown>;
@@ -70,5 +112,30 @@ export async function extractWithSingleReinspection(
     const reinspectionPrompt = buildReinspectionPrompt(error.issues);
     const reinspectionOutput = await attempts.reinspect(reinspectionPrompt);
     return parseExtractionOutput(reinspectionOutput);
+  }
+}
+
+export async function extractGroundedWithSingleReinspection(
+  attempts: ExtractionAttempts,
+  jobDescription: string,
+): Promise<GroundedAnalysisExtraction> {
+  try {
+    return parseGroundedExtractionOutput(
+      await attempts.initial(),
+      jobDescription,
+    );
+  } catch (error) {
+    if (!(error instanceof ExtractionValidationError)) {
+      throw error;
+    }
+
+    const reinspectionPrompt = buildGroundedReinspectionPrompt(
+      jobDescription,
+      error.issues,
+    );
+    return parseGroundedExtractionOutput(
+      await attempts.reinspect(reinspectionPrompt),
+      jobDescription,
+    );
   }
 }

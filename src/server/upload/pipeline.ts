@@ -1,4 +1,5 @@
 import type { CvExtraction } from "../../domain/extraction/contract";
+import type { JobMatchExtraction } from "../../domain/job-match/contract";
 import {
   buildAnalysisResult,
   type CvAnalysisResult,
@@ -10,9 +11,14 @@ import {
   type UploadFileLike,
 } from "./prepare-upload";
 
+export interface PreparedAnalysisExtraction {
+  extraction: CvExtraction;
+  jobMatch: JobMatchExtraction | null;
+}
+
 export type ExtractPreparedUpload = (
   upload: Pick<PreparedUpload, "bytes" | "mediaType">,
-) => Promise<CvExtraction>;
+) => Promise<PreparedAnalysisExtraction>;
 
 export async function runUploadPipeline(
   file: UploadFileLike,
@@ -21,11 +27,11 @@ export async function runUploadPipeline(
   const upload = await prepareUpload(file);
 
   try {
-    const extraction = await extract({
+    const analysis = await extract({
       bytes: upload.bytes,
       mediaType: upload.mediaType,
     });
-    return buildAnalysisResult(extraction);
+    return buildAnalysisResult(analysis.extraction, analysis.jobMatch);
   } finally {
     disposePreparedUpload(upload);
   }

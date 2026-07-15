@@ -1,11 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createValidExtractionFixture } from "../../domain/extraction/contract.test-fixture";
+import { createJobMatchExtractionFixture } from "../../domain/job-match/contract.test-fixture";
 
 import {
   ExtractionValidationError,
+  extractGroundedWithSingleReinspection,
   extractWithSingleReinspection,
   parseExtractionOutput,
+  parseGroundedExtractionOutput,
 } from "./reinspection";
 
 describe("parseExtractionOutput", () => {
@@ -88,5 +91,55 @@ describe("extractWithSingleReinspection", () => {
     ).rejects.toBe(providerError);
 
     expect(reinspect).not.toHaveBeenCalled();
+  });
+});
+
+describe("grounded extraction reinspection", () => {
+  const jobDescription = [
+    "Requirements",
+    "Strong TypeScript experience is required.",
+  ].join("\n");
+
+  function groundedFixture() {
+    return {
+      extraction: createValidExtractionFixture(),
+      jobMatch: createJobMatchExtractionFixture(),
+    };
+  }
+
+  it("validates requirement evidence against the submitted job text", () => {
+    expect(parseGroundedExtractionOutput(groundedFixture(), jobDescription))
+      .toEqual(groundedFixture());
+
+    const invalid = groundedFixture();
+    invalid.jobMatch.requirements[0].requirementEvidence.quote =
+      "Five years of TypeScript experience are required.";
+
+    expect(() => parseGroundedExtractionOutput(invalid, jobDescription)).toThrow(
+      ExtractionValidationError,
+    );
+  });
+
+  it("reinspects once after a non-verbatim requirement quote", async () => {
+    const invalid = groundedFixture();
+    invalid.jobMatch.requirements[0].requirementEvidence.quote =
+      "Five years of TypeScript experience are required.";
+    const reinspect = vi.fn().mockResolvedValue(groundedFixture());
+
+    await expect(
+      extractGroundedWithSingleReinspection(
+        {
+          initial: vi.fn().mockResolvedValue(invalid),
+          reinspect,
+        },
+        jobDescription,
+      ),
+    ).resolves.toEqual(groundedFixture());
+
+    expect(reinspect).toHaveBeenCalledTimes(1);
+    const prompt = String(reinspect.mock.calls[0]?.[0]);
+    expect(prompt).toContain("not_verbatim_job_evidence");
+    expect(prompt).toContain(JSON.stringify(jobDescription));
+    expect(prompt).not.toContain("Five years");
   });
 });

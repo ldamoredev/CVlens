@@ -21,7 +21,18 @@ function iconSvg(size) {
 }
 
 async function png(size) {
-  return sharp(iconSvg(size)).flatten({ background: "#0b1524" }).png().toBuffer();
+  const bytes = await sharp(iconSvg(size))
+    .flatten({ background: "#0b1524" })
+    .ensureAlpha(1)
+    .png()
+    .toBuffer();
+  const metadata = await sharp(bytes).metadata();
+
+  if (metadata.channels !== 4) {
+    throw new Error(`Expected an RGBA icon at ${size}px.`);
+  }
+
+  return bytes;
 }
 
 function ico(images) {

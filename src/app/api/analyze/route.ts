@@ -7,7 +7,10 @@ import {
 import {
   AnthropicConfigurationError,
   extractCvWithAnthropic,
+  extractGroundedCvWithAnthropic,
 } from "../../../server/anthropic/analyze-document";
+import { validateOptionalJobDescription } from "../../../domain/job-match/job-description";
+import { selectAnalysisExtraction } from "../../../server/analysis/select-extraction";
 import { AnthropicRequestError } from "../../../server/anthropic/provider-error";
 import { ExtractionValidationError } from "../../../server/anthropic/reinspection";
 import {
@@ -100,15 +103,31 @@ export async function POST(request: Request): Promise<Response> {
       return errorResponse("invalid_request", 400, rateLimit);
     }
     const file = formData.get("file");
+    const jobDescription = validateOptionalJobDescription(
+      formData.get("jobDescription"),
+    );
 
     if (!(file instanceof File)) {
       outcome = "invalid_upload";
       return errorResponse("invalid_format", 400, rateLimit);
     }
 
+    if (!jobDescription.ok) {
+      outcome = "invalid_request";
+      return errorResponse("invalid_request", 400, rateLimit);
+    }
+
     const result = await runUploadPipeline(
       file,
-      (document) => extractCvWithAnthropic(document, request.signal),
+      (document) => selectAnalysisExtraction(
+        document,
+        jobDescription.value,
+        request.signal,
+        {
+          extractCv: extractCvWithAnthropic,
+          extractGrounded: extractGroundedCvWithAnthropic,
+        },
+      ),
     );
     outcome = "success";
     return Response.json(result, {

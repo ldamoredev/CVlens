@@ -1,4 +1,5 @@
 import { scoreExtraction } from "../domain/rubric/rubric";
+import { scoreJobMatch } from "../domain/job-match/score";
 import {
   createAnalysisPresentation,
   type AnalysisPresentation,
@@ -8,6 +9,7 @@ import {
   cachedExampleExtractions,
   type FictionalExampleId,
 } from "./cached-example-extractions";
+import { cachedJobMatchFixtures } from "./cached-job-match-extractions";
 
 export type {
   AnalysisPresentation,
@@ -74,6 +76,7 @@ function buildFictionalExample(
   metadata: FictionalExampleMetadata,
 ): FictionalExample {
   const extraction = cachedExampleExtractions[metadata.id];
+  const jobMatch = cachedJobMatchFixtures[metadata.id];
   const analysis = createAnalysisPresentation(
     extraction,
     scoreExtraction(extraction),
@@ -84,6 +87,11 @@ function buildFictionalExample(
       name: metadata.name,
       role: metadata.role,
       source: "cached_example",
+    },
+    {
+      extraction: jobMatch.extraction,
+      jobTitle: jobMatch.jobTitle,
+      score: scoreJobMatch(jobMatch.extraction),
     },
   );
 

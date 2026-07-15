@@ -19,7 +19,11 @@ function pdfFile(): UploadFileLike {
 
 describe("runUploadPipeline", () => {
   it("passes only validated findings into the deterministic rubric", async () => {
-    const extract = vi.fn().mockResolvedValue(createValidExtractionFixture());
+    const extraction = createValidExtractionFixture();
+    const extract = vi.fn().mockResolvedValue({
+      extraction,
+      jobMatch: null,
+    });
 
     const result = await runUploadPipeline(pdfFile(), extract);
 
@@ -36,7 +40,10 @@ describe("runUploadPipeline", () => {
 
     await runUploadPipeline(pdfFile(), async (upload) => {
       capturedBytes = upload.bytes;
-      return createValidExtractionFixture();
+      return {
+        extraction: createValidExtractionFixture(),
+        jobMatch: null,
+      };
     });
 
     expect(capturedBytes).toBeDefined();

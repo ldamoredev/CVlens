@@ -5,10 +5,10 @@ import { createJobMatchExtractionFixture } from "../../domain/job-match/contract
 
 import {
   ExtractionValidationError,
-  extractGroundedWithSingleReinspection,
+  extractJobMatchWithSingleReinspection,
   extractWithSingleReinspection,
   parseExtractionOutput,
-  parseGroundedExtractionOutput,
+  parseJobMatchExtractionOutput,
 } from "./reinspection";
 
 describe("parseExtractionOutput", () => {
@@ -94,47 +94,41 @@ describe("extractWithSingleReinspection", () => {
   });
 });
 
-describe("grounded extraction reinspection", () => {
+describe("job-match extraction reinspection", () => {
   const jobDescription = [
     "Requirements",
     "Strong TypeScript experience is required.",
   ].join("\n");
 
-  function groundedFixture() {
-    return {
-      extraction: createValidExtractionFixture(),
-      jobMatch: createJobMatchExtractionFixture(),
-    };
-  }
-
   it("validates requirement evidence against the submitted job text", () => {
-    expect(parseGroundedExtractionOutput(groundedFixture(), jobDescription))
-      .toEqual(groundedFixture());
+    const valid = createJobMatchExtractionFixture();
+    expect(parseJobMatchExtractionOutput(valid, jobDescription)).toEqual(valid);
 
-    const invalid = groundedFixture();
-    invalid.jobMatch.requirements[0].requirementEvidence.quote =
+    const invalid = createJobMatchExtractionFixture();
+    invalid.requirements[0].requirementEvidence.quote =
       "Five years of TypeScript experience are required.";
 
-    expect(() => parseGroundedExtractionOutput(invalid, jobDescription)).toThrow(
+    expect(() => parseJobMatchExtractionOutput(invalid, jobDescription)).toThrow(
       ExtractionValidationError,
     );
   });
 
   it("reinspects once after a non-verbatim requirement quote", async () => {
-    const invalid = groundedFixture();
-    invalid.jobMatch.requirements[0].requirementEvidence.quote =
+    const invalid = createJobMatchExtractionFixture();
+    invalid.requirements[0].requirementEvidence.quote =
       "Five years of TypeScript experience are required.";
-    const reinspect = vi.fn().mockResolvedValue(groundedFixture());
+    const valid = createJobMatchExtractionFixture();
+    const reinspect = vi.fn().mockResolvedValue(valid);
 
     await expect(
-      extractGroundedWithSingleReinspection(
+      extractJobMatchWithSingleReinspection(
         {
           initial: vi.fn().mockResolvedValue(invalid),
           reinspect,
         },
         jobDescription,
       ),
-    ).resolves.toEqual(groundedFixture());
+    ).resolves.toEqual(valid);
 
     expect(reinspect).toHaveBeenCalledTimes(1);
     const prompt = String(reinspect.mock.calls[0]?.[0]);

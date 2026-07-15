@@ -1,6 +1,7 @@
 export const DEFAULT_ANTHROPIC_MODEL = "claude-haiku-4-5-20251001";
 export const EXTRACTION_MAX_TOKENS = 6_000;
-export const GROUNDED_EXTRACTION_MAX_TOKENS = 9_000;
+export const JOB_MATCH_MAX_TOKENS = 4_000;
+export const GENERATION_MAX_TOKENS = 9_000;
 export const EXTRACTION_TIMEOUT_MS = 60_000;
 export const ANALYSIS_DEADLINE_MS = 75_000;
 

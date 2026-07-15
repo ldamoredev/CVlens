@@ -13,12 +13,27 @@ export type PreviewState =
   | "invalid_format"
   | "loading"
   | "partial"
+  | "provider_busy"
+  | "provider_unavailable"
   | "rate_limited"
   | "selected"
   | "success"
-  | "technical_error";
+  | "technical_error"
+  | "timeout";
 
 export type AppState = Exclude<PreviewState, "dragging">;
+
+export type AnalysisErrorState = Extract<
+  AppState,
+  | "file_too_large"
+  | "insufficient"
+  | "invalid_format"
+  | "provider_busy"
+  | "provider_unavailable"
+  | "rate_limited"
+  | "technical_error"
+  | "timeout"
+>;
 
 export type UploadValidation =
   | { valid: true }
@@ -32,10 +47,13 @@ const previewStates = new Set<PreviewState>([
   "invalid_format",
   "loading",
   "partial",
+  "provider_busy",
+  "provider_unavailable",
   "rate_limited",
   "selected",
   "success",
   "technical_error",
+  "timeout",
 ]);
 
 export function normalizePreviewState(value: string | undefined): PreviewState {

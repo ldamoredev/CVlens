@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 
 export const ANALYSIS_RATE_LIMIT_MAX_REQUESTS = 3;
+export const GENERATION_RATE_LIMIT_MAX_REQUESTS = 3;
 export const ANALYSIS_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1_000;
 const MAX_RATE_LIMIT_BUCKETS = 10_000;
 
@@ -81,6 +82,7 @@ interface AnalysisRateLimitState {
 
 const rateLimitGlobal = globalThis as typeof globalThis & {
   __cvlensAnalysisRateLimit?: AnalysisRateLimitState;
+  __cvlensGenerationRateLimit?: AnalysisRateLimitState;
 };
 
 function getAnalysisRateLimitState(): AnalysisRateLimitState {
@@ -99,6 +101,32 @@ export function consumeAnalysisRateLimit(
   now = Date.now(),
 ): RateLimitDecision {
   const state = getAnalysisRateLimitState();
+  const opaqueKey = createHash("sha256")
+    .update(state.salt)
+    .update(clientAddress)
+    .digest("hex");
+
+  return state.limiter.consume(opaqueKey, now);
+}
+
+function getGenerationRateLimitState(): AnalysisRateLimitState {
+  if (!rateLimitGlobal.__cvlensGenerationRateLimit) {
+    rateLimitGlobal.__cvlensGenerationRateLimit = {
+      limiter: new FixedWindowRateLimiter({
+        limit: GENERATION_RATE_LIMIT_MAX_REQUESTS,
+      }),
+      salt: randomBytes(32).toString("hex"),
+    };
+  }
+
+  return rateLimitGlobal.__cvlensGenerationRateLimit;
+}
+
+export function consumeGenerationRateLimit(
+  clientAddress: string,
+  now = Date.now(),
+): RateLimitDecision {
+  const state = getGenerationRateLimitState();
   const opaqueKey = createHash("sha256")
     .update(state.salt)
     .update(clientAddress)

@@ -5,6 +5,8 @@ import {
   DEFAULT_ANTHROPIC_MODEL,
   EXTRACTION_MAX_TOKENS,
   EXTRACTION_TIMEOUT_MS,
+  GENERATION_MAX_TOKENS,
+  JOB_MATCH_MAX_TOKENS,
   resolveAnthropicModel,
 } from "./model";
 
@@ -18,6 +20,8 @@ describe("Anthropic model configuration", () => {
   it("preserves a deliberate model override and bounds output", () => {
     expect(resolveAnthropicModel(" custom-model ")).toBe("custom-model");
     expect(EXTRACTION_MAX_TOKENS).toBe(6_000);
+    expect(JOB_MATCH_MAX_TOKENS).toBe(4_000);
+    expect(GENERATION_MAX_TOKENS).toBe(9_000);
     expect(EXTRACTION_TIMEOUT_MS).toBe(60_000);
     expect(ANALYSIS_DEADLINE_MS).toBe(75_000);
   });

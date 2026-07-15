@@ -7,7 +7,7 @@ import {
 import {
   AnthropicConfigurationError,
   extractCvWithAnthropic,
-  extractGroundedCvWithAnthropic,
+  extractJobMatchWithAnthropic,
 } from "../../../server/anthropic/analyze-document";
 import { validateOptionalJobDescription } from "../../../domain/job-match/job-description";
 import { selectAnalysisExtraction } from "../../../server/analysis/select-extraction";
@@ -28,6 +28,10 @@ import {
 } from "../../../server/security/request-policy";
 import { runUploadPipeline } from "../../../server/upload/pipeline";
 import { UploadPreparationError } from "../../../server/upload/prepare-upload";
+import {
+  createGenerationSession,
+} from "../../../server/generation/session";
+import type { GenerationSessionState } from "../../../domain/generation/contract";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -117,20 +121,26 @@ export async function POST(request: Request): Promise<Response> {
       return errorResponse("invalid_request", 400, rateLimit);
     }
 
+    let generationSession: GenerationSessionState | undefined;
     const result = await runUploadPipeline(
       file,
-      (document) => selectAnalysisExtraction(
-        document,
-        jobDescription.value,
-        request.signal,
-        {
-          extractCv: extractCvWithAnthropic,
-          extractGrounded: extractGroundedCvWithAnthropic,
-        },
-      ),
+      async (document) => {
+        const analysis = await selectAnalysisExtraction(
+          document,
+          jobDescription.value,
+          request.signal,
+          {
+            extractCv: extractCvWithAnthropic,
+            extractJobMatch: extractJobMatchWithAnthropic,
+          },
+        );
+        generationSession = createGenerationSession(document.bytes);
+        return analysis;
+      },
     );
+    if (!generationSession) throw new Error("Generation session was not created.");
     outcome = "success";
-    return Response.json(result, {
+    return Response.json({ ...result, generationSession }, {
       status: 200,
       headers: responseHeaders(rateLimit),
     });
@@ -159,6 +169,11 @@ export async function POST(request: Request): Promise<Response> {
         return errorResponse("timeout", 504, rateLimit);
       }
 
+      if (error.reason === "request" || error.reason === "authentication") {
+        outcome = "technical_error";
+        return errorResponse("technical_error", 502, rateLimit);
+      }
+
       outcome = "provider_error";
       if (error.reason === "connection") {
         return errorResponse("provider_unavailable", 502, rateLimit);
@@ -166,7 +181,7 @@ export async function POST(request: Request): Promise<Response> {
       if (error.reason === "rate_limited" || error.reason === "provider") {
         return errorResponse("provider_busy", 503, rateLimit);
       }
-      return errorResponse("technical_error", 503, rateLimit);
+      return errorResponse("technical_error", 502, rateLimit);
     }
 
     outcome = "technical_error";

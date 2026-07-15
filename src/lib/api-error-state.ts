@@ -13,7 +13,10 @@ export function apiErrorState(value: unknown): AppState {
     code === "file_too_large" ||
     code === "insufficient" ||
     code === "invalid_format" ||
-    code === "rate_limited"
+    code === "provider_busy" ||
+    code === "provider_unavailable" ||
+    code === "rate_limited" ||
+    code === "timeout"
   ) {
     return code;
   }

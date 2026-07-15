@@ -5,9 +5,10 @@ auditable document-quality analysis. A model extracts structured, cited findings
 deterministic TypeScript code applies a documented rubric to calculate five dimension
 scores and one overall score.
 
-**Phases 0–9 are complete; the MVP is live at <https://cvlens.up.railway.app>. Phase 10 is
-not active.** See `STATUS.md` before contributing and activate only the next eligible
-phase.
+**Phases 0–10 are complete; the MVP is live at <https://cvlens.up.railway.app>.** Sequential
+CV generation produces one source-backed version per action, up to three generations for a
+live analysis; it never returns three variants at once and does not require three different
+strategies.
 
 ## Architecture principle
 
@@ -32,8 +33,12 @@ the Railway deploy runbook are documented in [`docs/launch.md`](docs/launch.md).
 The production metadata, crawl routes, CSP-compatible structured data, and Lighthouse
 before/after audit are documented in [`docs/seo.md`](docs/seo.md).
 The optional job-description boundary, cited coverage contract, separate deterministic
-match score, recommendations, and hand-verified fixture pairs are documented in
+match score, parallel split-schema provider path, recommendations, and hand-verified fixture
+pairs are documented in
 [`docs/job-grounding.md`](docs/job-grounding.md).
+The one-at-a-time generation sequence, strict source traceability, opaque session quota,
+browser-only source retention, preview, and Markdown download are documented in
+[`docs/cv-generation.md`](docs/cv-generation.md).
 
 ## Interface themes
 
@@ -84,7 +89,8 @@ Railway is the fixed deployment target for the MVP:
 - no database, object storage, or persisted upload volume;
 - the service reads `PORT` from Railway/Next.js and receives `ANTHROPIC_API_KEY` and
   `ANTHROPIC_MODEL` as service variables;
-- uploaded buffers remain ephemeral and must be discarded immediately after analysis;
+- uploaded buffers remain ephemeral and must be discarded immediately after every analysis
+  or generation request;
 - Railway checks `GET /health`, which returns only uptime and aggregate analysis metrics;
 - `railway.json` declares the Railpack build, start command, one replica, health check,
   and bounded restart policy.
@@ -94,10 +100,12 @@ target for subsequent phases.
 
 ## Privacy and safety
 
-CVs and job descriptions can contain personal or confidential data. CVLens stores neither;
-the selected inputs are sent to Anthropic only for the requested analysis and request-local
-CV buffers are discarded when processing finishes. Application code must never log CV or
-job-description text, filenames, contact data, provider payloads, or raw source addresses,
+CVs and job descriptions can contain personal or confidential data. CVLens stores neither.
+After a live analysis, the browser may retain its in-memory `File` reference only for up to
+three user-requested generations; it is cleared on reset or page close and is never persisted.
+Inputs are sent to Anthropic only for each requested operation, and request-local server
+buffers are discarded when processing finishes. Application code must never log CV or job-
+description text, filenames, contact data, provider payloads, or raw source addresses,
 comment on protected attributes, or invent content. Bundled examples are fictional and
 served from reviewed fixtures without live model calls.
 

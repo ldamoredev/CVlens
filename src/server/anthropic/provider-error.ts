@@ -13,6 +13,7 @@ export type AnthropicRequestFailure =
   | "connection"
   | "provider"
   | "rate_limited"
+  | "request"
   | "timeout";
 
 export class AnthropicRequestError extends Error {
@@ -44,6 +45,10 @@ export function classifyAnthropicError(error: unknown): AnthropicRequestFailure 
     (error instanceof APIError && (error.status === 401 || error.status === 403))
   ) {
     return "authentication";
+  }
+
+  if (error instanceof APIError && error.status >= 400 && error.status < 500) {
+    return "request";
   }
 
   if (error instanceof APIConnectionError) return "connection";

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { FixedWindowRateLimiter, rateLimitHeaders } from "./rate-limit";
+import {
+  ANALYSIS_RATE_LIMIT_MAX_REQUESTS,
+  GENERATION_RATE_LIMIT_MAX_REQUESTS,
+  FixedWindowRateLimiter,
+  rateLimitHeaders,
+} from "./rate-limit";
 
 describe("FixedWindowRateLimiter", () => {
   it("allows the configured quota and rejects the next request", () => {
@@ -50,5 +55,10 @@ describe("FixedWindowRateLimiter", () => {
     expect(headers.get("RateLimit-Remaining")).toBe("0");
     expect(headers.get("RateLimit-Reset")).toBe("600");
     expect([...headers.values()].join(" ")).not.toContain("private-ip");
+  });
+
+  it("reserves a separate three-request quota for sequential generation", () => {
+    expect(ANALYSIS_RATE_LIMIT_MAX_REQUESTS).toBe(3);
+    expect(GENERATION_RATE_LIMIT_MAX_REQUESTS).toBe(3);
   });
 });

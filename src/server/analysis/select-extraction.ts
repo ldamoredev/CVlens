@@ -1,5 +1,5 @@
 import type { CvExtraction } from "../../domain/extraction/contract";
-import type { GroundedAnalysisExtraction } from "../../domain/job-match/grounded-contract";
+import type { JobMatchExtraction } from "../../domain/job-match/contract";
 import type { AnthropicInputDocument } from "../anthropic/document-content";
 import type { PreparedAnalysisExtraction } from "../upload/pipeline";
 
@@ -8,11 +8,11 @@ export interface AnalysisExtractionProviders {
     document: AnthropicInputDocument,
     signal?: AbortSignal,
   ) => Promise<CvExtraction>;
-  extractGrounded: (
+  extractJobMatch: (
     document: AnthropicInputDocument,
     jobDescription: string,
     signal?: AbortSignal,
-  ) => Promise<GroundedAnalysisExtraction>;
+  ) => Promise<JobMatchExtraction>;
 }
 
 export async function selectAnalysisExtraction(
@@ -28,13 +28,19 @@ export async function selectAnalysisExtraction(
     };
   }
 
-  const grounded = await providers.extractGrounded(
-    document,
-    jobDescription,
-    signal,
-  );
-  return {
-    extraction: grounded.extraction,
-    jobMatch: grounded.jobMatch,
-  };
+  const controller = new AbortController();
+  const abortFromRequest = () => controller.abort();
+  signal.addEventListener("abort", abortFromRequest, { once: true });
+  if (signal.aborted) controller.abort();
+
+  try {
+    const [extraction, jobMatch] = await Promise.all([
+      providers.extractCv(document, controller.signal),
+      providers.extractJobMatch(document, jobDescription, controller.signal),
+    ]);
+    return { extraction, jobMatch };
+  } finally {
+    controller.abort();
+    signal.removeEventListener("abort", abortFromRequest);
+  }
 }

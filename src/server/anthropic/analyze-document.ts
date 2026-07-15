@@ -5,14 +5,14 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 
 import { cvExtractionSchema, type CvExtraction } from "../../domain/extraction/contract";
 import {
-  groundedAnalysisExtractionSchema,
-  type GroundedAnalysisExtraction,
-} from "../../domain/job-match/grounded-contract";
+  jobMatchExtractionSchema,
+  type JobMatchExtraction,
+} from "../../domain/job-match/contract";
 import {
   ANALYSIS_DEADLINE_MS,
   EXTRACTION_MAX_TOKENS,
   EXTRACTION_TIMEOUT_MS,
-  GROUNDED_EXTRACTION_MAX_TOKENS,
+  JOB_MATCH_MAX_TOKENS,
   resolveAnthropicModel,
 } from "./model";
 import {
@@ -22,12 +22,12 @@ import {
 import {
   EXTRACTION_ANALYSIS_PROMPT,
   EXTRACTION_SYSTEM_PROMPT,
-  buildGroundedAnalysisPrompt,
-  GROUNDED_EXTRACTION_SYSTEM_PROMPT,
+  buildJobMatchAnalysisPrompt,
+  JOB_MATCH_SYSTEM_PROMPT,
 } from "./prompts";
 import {
   ExtractionValidationError,
-  extractGroundedWithSingleReinspection,
+  extractJobMatchWithSingleReinspection,
   extractWithSingleReinspection,
 } from "./reinspection";
 import {
@@ -42,7 +42,7 @@ export class AnthropicConfigurationError extends Error {
   }
 }
 
-async function invokeGroundedExtraction(
+async function invokeJobMatchExtraction(
   client: Anthropic,
   document: AnthropicInputDocument,
   prompt: string,
@@ -51,9 +51,9 @@ async function invokeGroundedExtraction(
   const message = await client.messages.create(
     {
       model: resolveAnthropicModel(process.env.ANTHROPIC_MODEL),
-      max_tokens: GROUNDED_EXTRACTION_MAX_TOKENS,
+      max_tokens: JOB_MATCH_MAX_TOKENS,
       temperature: 0,
-      system: GROUNDED_EXTRACTION_SYSTEM_PROMPT,
+      system: JOB_MATCH_SYSTEM_PROMPT,
       messages: [
         {
           role: "user",
@@ -64,7 +64,7 @@ async function invokeGroundedExtraction(
         },
       ],
       output_config: {
-        format: zodOutputFormat(groundedAnalysisExtractionSchema),
+        format: zodOutputFormat(jobMatchExtractionSchema),
       },
     },
     { signal },
@@ -164,11 +164,11 @@ export async function extractCvWithAnthropic(
   }
 }
 
-export async function extractGroundedCvWithAnthropic(
+export async function extractJobMatchWithAnthropic(
   document: AnthropicInputDocument,
   jobDescription: string,
   requestSignal?: AbortSignal,
-): Promise<GroundedAnalysisExtraction> {
+): Promise<JobMatchExtraction> {
   const client = getAnthropicClient();
   const controller = new AbortController();
   const abortFromRequest = () => controller.abort();
@@ -177,15 +177,15 @@ export async function extractGroundedCvWithAnthropic(
   const deadline = setTimeout(() => controller.abort(), ANALYSIS_DEADLINE_MS);
 
   try {
-    return await extractGroundedWithSingleReinspection(
+    return await extractJobMatchWithSingleReinspection(
       {
-        initial: () => invokeGroundedExtraction(
+        initial: () => invokeJobMatchExtraction(
           client,
           document,
-          buildGroundedAnalysisPrompt(jobDescription),
+          buildJobMatchAnalysisPrompt(jobDescription),
           controller.signal,
         ),
-        reinspect: (prompt) => invokeGroundedExtraction(
+        reinspect: (prompt) => invokeJobMatchExtraction(
           client,
           document,
           prompt,

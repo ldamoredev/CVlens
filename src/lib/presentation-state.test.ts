@@ -36,10 +36,13 @@ describe("state preview contract", () => {
       "invalid_format",
       "loading",
       "partial",
+      "provider_busy",
+      "provider_unavailable",
       "rate_limited",
       "selected",
       "success",
       "technical_error",
+      "timeout",
     ];
 
     expect(states.map(normalizePreviewState)).toEqual(states);

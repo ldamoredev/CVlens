@@ -3,15 +3,13 @@ import {
   type CvExtraction,
 } from "../../domain/extraction/contract";
 import {
+  jobMatchExtractionSchema,
   validateRequirementQuotes,
+  type JobMatchExtraction,
 } from "../../domain/job-match/contract";
-import {
-  groundedAnalysisExtractionSchema,
-  type GroundedAnalysisExtraction,
-} from "../../domain/job-match/grounded-contract";
 
 import {
-  buildGroundedReinspectionPrompt,
+  buildJobMatchReinspectionPrompt,
   buildReinspectionPrompt,
 } from "./prompts";
 
@@ -58,12 +56,12 @@ export function parseExtractionOutput(value: unknown): CvExtraction {
   return result.data;
 }
 
-export function parseGroundedExtractionOutput(
+export function parseJobMatchExtractionOutput(
   value: unknown,
   jobDescription: string,
-): GroundedAnalysisExtraction {
+): JobMatchExtraction {
   const parsedJson = parseJson(value);
-  const result = groundedAnalysisExtractionSchema.safeParse(parsedJson);
+  const result = jobMatchExtractionSchema.safeParse(parsedJson);
 
   if (!result.success) {
     throw new ExtractionValidationError(
@@ -76,12 +74,12 @@ export function parseGroundedExtractionOutput(
 
   const quoteValidation = validateRequirementQuotes(
     jobDescription,
-    result.data.jobMatch,
+    result.data,
   );
   if (!quoteValidation.valid) {
     throw new ExtractionValidationError(
       quoteValidation.invalidRequirementIndexes.map((index) => ({
-        path: `jobMatch.requirements.${index}.requirementEvidence.quote`,
+        path: `requirements.${index}.requirementEvidence.quote`,
         code: "not_verbatim_job_evidence",
       })),
     );
@@ -115,12 +113,12 @@ export async function extractWithSingleReinspection(
   }
 }
 
-export async function extractGroundedWithSingleReinspection(
+export async function extractJobMatchWithSingleReinspection(
   attempts: ExtractionAttempts,
   jobDescription: string,
-): Promise<GroundedAnalysisExtraction> {
+): Promise<JobMatchExtraction> {
   try {
-    return parseGroundedExtractionOutput(
+    return parseJobMatchExtractionOutput(
       await attempts.initial(),
       jobDescription,
     );
@@ -129,11 +127,11 @@ export async function extractGroundedWithSingleReinspection(
       throw error;
     }
 
-    const reinspectionPrompt = buildGroundedReinspectionPrompt(
+    const reinspectionPrompt = buildJobMatchReinspectionPrompt(
       jobDescription,
       error.issues,
     );
-    return parseGroundedExtractionOutput(
+    return parseJobMatchExtractionOutput(
       await attempts.reinspect(reinspectionPrompt),
       jobDescription,
     );

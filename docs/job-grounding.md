@@ -23,6 +23,15 @@ does not persist or log the job description, just as it does not persist or log 
 Both are sent to Anthropic only for the requested live comparison. Cached examples use
 local fictional fixtures and never call the provider.
 
+For a supplied job description, the server runs two bounded Anthropic requests in parallel:
+one preserves the established CV-quality schema and one returns only the job-match schema.
+They share request cancellation, so a browser abort or failure cancels the peer request. This
+split is required because Anthropic compiles structured-output schemas into grammars and
+rejects overly complex combined schemas with HTTP 400; its documented mitigation is to split
+the schema across requests. CVLens still returns one atomic analysis response only after both
+validated findings are available. See the
+[Anthropic structured-output complexity limits](https://platform.claude.com/docs/en/build-with-claude/structured-outputs#schema-complexity-limits).
+
 ## Extraction contract
 
 The model returns findings only. `src/domain/job-match/contract.ts` uses a strict Zod
@@ -46,6 +55,12 @@ comparison against the submitted job description. A failed schema or grounding c
 allows exactly one independent reinspection of the original CV and job description. Raw
 model output, CV content, and job-description content are not retained in validation
 errors.
+
+The comparison prompt requires each requirement quote to be one contiguous,
+character-for-character source substring. It forbids translation, punctuation normalization,
+ellipsis, and concatenated fragments; a complete source sentence may be reused for distinct
+requirements. This keeps prose-style job descriptions compatible with the same deterministic
+substring validation used for bullet-based descriptions.
 
 Both documents are explicitly treated as untrusted data. The system prompt instructs the
 model to ignore embedded instructions, protected attributes, contact values, inferred

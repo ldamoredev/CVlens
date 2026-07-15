@@ -20,6 +20,19 @@ import {
 } from "@/data/fictional-examples";
 import { createAnalysisPresentation } from "@/data/analysis-presentation";
 import { cvExtractionSchema } from "@/domain/extraction/contract";
+import {
+  GENERATION_STRATEGIES,
+  generationApiErrorSchema,
+  generationApiResponseSchema,
+  generationSessionStateSchema,
+  type GeneratedClaim,
+  type GeneratedCv,
+  type GenerationEvidence,
+  type GenerationApiErrorCode,
+  type GenerationSessionState,
+  type GenerationStrategy,
+} from "@/domain/generation/contract";
+import { generatedCvToMarkdown } from "@/domain/generation/markdown";
 import { jobMatchExtractionSchema } from "@/domain/job-match/contract";
 import {
   MAX_JOB_DESCRIPTION_CHARACTERS,
@@ -30,6 +43,7 @@ import { scoreJobMatch } from "@/domain/job-match/score";
 import { scoreExtraction } from "@/domain/rubric/rubric";
 import { apiErrorState } from "@/lib/api-error-state";
 import {
+  type AnalysisErrorState,
   type AppState,
   formatFileSize,
   type PreviewState,
@@ -46,6 +60,22 @@ interface FileSnapshot {
   name: string;
   size: number;
   type: string;
+}
+
+interface GenerationSource {
+  file: File;
+  jobDescription: string | null;
+}
+
+interface GenerationViewState {
+  busy: boolean;
+  current: GeneratedCv | null;
+  error: string | null;
+  session: GenerationSessionState;
+  strategy: GenerationStrategy;
+  onDownload: () => void;
+  onGenerate: () => void;
+  onStrategyChange: (strategy: GenerationStrategy) => void;
 }
 
 const copy = {
@@ -125,8 +155,30 @@ const copy = {
     collapse: "Ocultar evidencia",
     footerPrinciple:
       "Extracción probabilística, puntaje determinístico — el modelo halla evidencia; TypeScript calcula.",
-    footerPrivacy: "CVLens no guarda tu CV; Anthropic lo procesa para realizar el análisis.",
+    footerPrivacy:
+      "CVLens no guarda tu CV; Anthropic lo procesa sólo para cada operación solicitada.",
     fictional: "persona ficticia",
+    generation: {
+      title: "Generá una versión mejorada",
+      intro:
+        "Elegí una estrategia. CVLens genera un solo CV por vez y permite hasta tres generaciones para este análisis.",
+      strategies: {
+        ats_focused: ["Enfoque ATS", "Estructura convencional y términos explícitos del CV."],
+        impact_focused: ["Enfoque en impacto", "Prioriza resultados y contribuciones respaldadas por citas."],
+        concise: ["Versión concisa", "Reduce repetición y conserva sólo evidencia relevante."],
+      },
+      generate: "Generar un CV",
+      generating: "Generando una versión",
+      count: "generaciones usadas",
+      remaining: "disponibles",
+      current: "Vista previa de la última generación",
+      download: "Descargar Markdown",
+      evidence: "Ver fuente",
+      source: "cita textual del CV",
+      privacy:
+        "El archivo permanece sólo en la memoria de este navegador para las generaciones solicitadas; el servidor descarta cada copia temporal.",
+      complete: "Alcanzaste el máximo de tres generaciones para este análisis.",
+    },
   },
   en: {
     tagline: "Verifiable CV analysis",
@@ -203,10 +255,66 @@ const copy = {
     collapse: "Hide evidence",
     footerPrinciple:
       "Probabilistic extraction, deterministic scoring — the model finds evidence; TypeScript computes.",
-    footerPrivacy: "CVLens does not store your CV; Anthropic processes it for the analysis.",
+    footerPrivacy:
+      "CVLens does not store your CV; Anthropic processes it only for each requested operation.",
     fictional: "fictional person",
+    generation: {
+      title: "Generate an improved version",
+      intro:
+        "Choose a strategy. CVLens generates one CV at a time and allows up to three generations for this analysis.",
+      strategies: {
+        ats_focused: ["ATS focus", "Uses conventional structure and explicit terms from the CV."],
+        impact_focused: ["Impact focus", "Prioritizes outcomes and contributions backed by quotes."],
+        concise: ["Concise version", "Removes repetition and keeps only relevant evidence."],
+      },
+      generate: "Generate one CV",
+      generating: "Generating one version",
+      count: "generations used",
+      remaining: "available",
+      current: "Latest generation preview",
+      download: "Download Markdown",
+      evidence: "View source",
+      source: "verbatim CV quote",
+      privacy:
+        "The file remains only in this browser's memory for requested generations; the server discards each temporary copy.",
+      complete: "You reached the maximum of three generations for this analysis.",
+    },
   },
 } as const;
+
+const generationErrorCopy: Record<
+  DocumentLanguage,
+  Record<GenerationApiErrorCode, string>
+> = {
+  es: {
+    file_too_large: "El archivo supera el límite permitido.",
+    generation_in_progress: "Ya hay una generación en curso. Esperá a que termine.",
+    generation_limit: "Ya usaste las tres generaciones disponibles.",
+    insufficient: "No se pudo producir una versión con evidencia suficiente.",
+    invalid_format: "El archivo ya no tiene un formato válido.",
+    invalid_request: "No se pudo validar la solicitud de generación.",
+    invalid_session: "La sesión expiró o no corresponde a este archivo. Volvé a analizar el CV.",
+    provider_busy: "El proveedor está ocupado. Podés reintentar esta generación.",
+    provider_unavailable: "El proveedor no está disponible. Podés reintentar más tarde.",
+    rate_limited: "Alcanzaste el límite temporal de generaciones. Esperá unos minutos.",
+    technical_error: "No pudimos completar la generación. Podés reintentar.",
+    timeout: "La generación tardó demasiado. Podés reintentar.",
+  },
+  en: {
+    file_too_large: "The file exceeds the allowed limit.",
+    generation_in_progress: "A generation is already in progress. Wait for it to finish.",
+    generation_limit: "You already used all three available generations.",
+    insufficient: "A version with sufficient evidence could not be produced.",
+    invalid_format: "The file no longer has a valid format.",
+    invalid_request: "The generation request could not be validated.",
+    invalid_session: "The session expired or does not match this file. Analyze the CV again.",
+    provider_busy: "The provider is busy. You can retry this generation.",
+    provider_unavailable: "The provider is unavailable. You can retry later.",
+    rate_limited: "You reached the temporary generation limit. Wait a few minutes.",
+    technical_error: "The generation could not be completed. You can retry.",
+    timeout: "The generation took too long. You can retry.",
+  },
+};
 
 const errorCopy = {
   es: {
@@ -232,6 +340,22 @@ const errorCopy = {
       action: "Elegir otro archivo",
       tone: "danger",
     },
+    provider_busy: {
+      icon: "◷",
+      title: "El proveedor está ocupado",
+      message:
+        "El análisis fue rechazado temporalmente. Esperá unos segundos y reintentá; tu archivo no se almacenó.",
+      action: "Reintentar",
+      tone: "warning",
+    },
+    provider_unavailable: {
+      icon: "◷",
+      title: "El proveedor no está disponible",
+      message:
+        "No pudimos conectar con el proveedor. Probá de nuevo en unos minutos; tu archivo no se almacenó.",
+      action: "Reintentar",
+      tone: "warning",
+    },
     technical_error: {
       icon: "×",
       title: "Algo falló de nuestro lado",
@@ -244,6 +368,14 @@ const errorCopy = {
       title: "Límite temporal alcanzado",
       message: "Esperá unos minutos y probá de nuevo. No hace falta volver a preparar el CV.",
       action: "Volver al inicio",
+      tone: "warning",
+    },
+    timeout: {
+      icon: "◷",
+      title: "El análisis tardó demasiado",
+      message:
+        "La solicitud superó el tiempo máximo. Podés reintentar; tu archivo no se almacenó.",
+      action: "Reintentar",
       tone: "warning",
     },
   },
@@ -270,6 +402,22 @@ const errorCopy = {
       action: "Choose another file",
       tone: "danger",
     },
+    provider_busy: {
+      icon: "◷",
+      title: "The provider is busy",
+      message:
+        "The analysis was temporarily rejected. Wait a few seconds and retry; your file was not stored.",
+      action: "Try again",
+      tone: "warning",
+    },
+    provider_unavailable: {
+      icon: "◷",
+      title: "The provider is unavailable",
+      message:
+        "We could not connect to the provider. Try again in a few minutes; your file was not stored.",
+      action: "Try again",
+      tone: "warning",
+    },
     technical_error: {
       icon: "×",
       title: "Something failed on our side",
@@ -282,6 +430,13 @@ const errorCopy = {
       title: "Temporary limit reached",
       message: "Wait a few minutes and try again. You do not need to prepare the CV again.",
       action: "Back to start",
+      tone: "warning",
+    },
+    timeout: {
+      icon: "◷",
+      title: "The analysis took too long",
+      message: "The request exceeded its time limit. You can retry; your file was not stored.",
+      action: "Try again",
       tone: "warning",
     },
   },
@@ -339,15 +494,16 @@ function MoonIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-function isErrorState(
-  state: AppState,
-): state is "file_too_large" | "insufficient" | "invalid_format" | "rate_limited" | "technical_error" {
+function isErrorState(state: AppState): state is AnalysisErrorState {
   return [
     "file_too_large",
     "insufficient",
     "invalid_format",
+    "provider_busy",
+    "provider_unavailable",
     "rate_limited",
     "technical_error",
+    "timeout",
   ].includes(state);
 }
 
@@ -388,6 +544,12 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
   const [jobDescription, setJobDescription] = useState("");
   const [progressStep, setProgressStep] = useState(0);
   const [openDimension, setOpenDimension] = useState(0);
+  const [generationSource, setGenerationSource] = useState<GenerationSource | null>(null);
+  const [generationSession, setGenerationSession] = useState<GenerationSessionState | null>(null);
+  const [generationStrategy, setGenerationStrategy] = useState<GenerationStrategy>("ats_focused");
+  const [generatedCv, setGeneratedCv] = useState<GeneratedCv | null>(null);
+  const [generationBusy, setGenerationBusy] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
   const t = copy[language];
 
   useEffect(() => {
@@ -438,6 +600,12 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
     setJobDescription("");
     setProgressStep(0);
     setOpenDimension(0);
+    setGenerationSource(null);
+    setGenerationSession(null);
+    setGenerationStrategy("ats_focused");
+    setGeneratedCv(null);
+    setGenerationBusy(false);
+    setGenerationError(null);
   };
 
   const acceptFile = (file: File) => {
@@ -451,6 +619,10 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
 
     setActiveResult(null);
     setPendingExample(null);
+    setGenerationSource(null);
+    setGenerationSession(null);
+    setGeneratedCv(null);
+    setGenerationError(null);
     setSelectedFile({ file, name: file.name, size: file.size, type: file.type });
     setViewState("selected");
   };
@@ -472,6 +644,10 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
     setActiveResult(null);
     setPendingExample(example);
     setSelectedFile(null);
+    setGenerationSource(null);
+    setGenerationSession(null);
+    setGeneratedCv(null);
+    setGenerationError(null);
     setOpenDimension(0);
     setProgressStep(0);
     setViewState("loading");
@@ -528,6 +704,12 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
         setViewState("technical_error");
         return;
       }
+      const sessionCandidate = isRecord(body) ? body.generationSession : undefined;
+      const parsedSession = generationSessionStateSchema.safeParse(sessionCandidate);
+      if (!parsedSession.success) {
+        setViewState("technical_error");
+        return;
+      }
       const resultLanguage: DocumentLanguage =
         parsed.data.document.language === "undetermined"
           ? language
@@ -554,6 +736,14 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
 
       setLanguage(result.language);
       setActiveResult(result);
+      setGenerationSource({
+        file: upload,
+        jobDescription: validatedJobDescription.value,
+      });
+      setGenerationSession(parsedSession.data);
+      setGenerationStrategy("ats_focused");
+      setGeneratedCv(null);
+      setGenerationError(null);
       setOpenDimension(0);
       setViewState(result.status);
     } catch {
@@ -562,6 +752,64 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  };
+
+  const generateOneCv = async () => {
+    if (!generationSource || !generationSession || generationBusy) return;
+    if (generationSession.remaining === 0) return;
+
+    setGenerationBusy(true);
+    setGenerationError(null);
+    const formData = new FormData();
+    formData.append("file", generationSource.file);
+    formData.append("generationToken", generationSession.token);
+    formData.append("strategy", generationStrategy);
+    if (generationSource.jobDescription !== null) {
+      formData.append("jobDescription", generationSource.jobDescription);
+    }
+
+    try {
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        body: formData,
+      });
+      const body: unknown = await response.json();
+      if (!response.ok) {
+        const parsedError = generationApiErrorSchema.safeParse(body);
+        setGenerationError(
+          parsedError.success
+            ? generationErrorCopy[language][parsedError.data.error.code]
+            : generationErrorCopy[language].technical_error,
+        );
+        return;
+      }
+
+      const parsed = generationApiResponseSchema.safeParse(body);
+      if (!parsed.success) {
+        setGenerationError(generationErrorCopy[language].technical_error);
+        return;
+      }
+
+      setGeneratedCv(parsed.data.generation);
+      setGenerationSession(parsed.data.session);
+    } catch {
+      setGenerationError(generationErrorCopy[language].technical_error);
+    } finally {
+      setGenerationBusy(false);
+    }
+  };
+
+  const downloadGeneratedCv = () => {
+    if (!generatedCv || !generationSession) return;
+    const blob = new Blob([generatedCvToMarkdown(generatedCv)], {
+      type: "text/markdown;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `cvlens-version-${generationSession.count}.md`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   const toggleTheme = () => {
@@ -638,6 +886,16 @@ export function CVLensApp({ initialPreviewState }: CVLensAppProps) {
               onReset={reset}
               openDimension={openDimension}
               onToggleDimension={(index) => setOpenDimension((current) => current === index ? -1 : index)}
+              generation={generationSource && generationSession ? {
+                busy: generationBusy,
+                current: generatedCv,
+                error: generationError,
+                session: generationSession,
+                strategy: generationStrategy,
+                onDownload: downloadGeneratedCv,
+                onGenerate: generateOneCv,
+                onStrategyChange: setGenerationStrategy,
+              } : null}
             />
           ) : null
         ) : (
@@ -814,7 +1072,7 @@ function StatusPanel({
   language,
   onReset,
 }: {
-  state: "file_too_large" | "insufficient" | "invalid_format" | "rate_limited" | "technical_error";
+  state: AnalysisErrorState;
   language: DocumentLanguage;
   onReset: () => void;
 }) {
@@ -873,12 +1131,14 @@ function ResultView({
   onReset,
   openDimension,
   onToggleDimension,
+  generation,
 }: {
   analysis: AnalysisPresentation;
   language: DocumentLanguage;
   onReset: () => void;
   openDimension: number;
   onToggleDimension: (index: number) => void;
+  generation: GenerationViewState | null;
 }) {
   const t = copy[language];
   const evaluated = analysis.dimensions.filter((dimension) => dimension.score !== null).length;
@@ -915,12 +1175,15 @@ function ResultView({
                 ? "documento ficticio"
                 : "fictional document"
               : language === "es"
-                ? "archivo descartado"
-                : "file discarded"}
+                ? "copia del servidor descartada"
+                : "server copy discarded"}
           </span>
         </div>
         {analysis.jobMatch ? (
           <JobMatchCard analysis={analysis.jobMatch} language={language} />
+        ) : null}
+        {generation ? (
+          <GenerationPanel generation={generation} language={language} />
         ) : null}
         {analysis.dimensions.map((dimension, index) => (
           <DimensionCard
@@ -933,6 +1196,234 @@ function ResultView({
         ))}
       </div>
     </section>
+  );
+}
+
+function GenerationPanel({
+  generation,
+  language,
+}: {
+  generation: GenerationViewState;
+  language: DocumentLanguage;
+}) {
+  const t = copy[language].generation;
+  const limitReached = generation.session.remaining === 0;
+
+  return (
+    <section className="generation-panel" aria-labelledby="generation-title">
+      <div className="generation-heading">
+        <div>
+          <p className="eyebrow">CV · 1 → 3</p>
+          <h2 id="generation-title">{t.title}</h2>
+          <p>{t.intro}</p>
+        </div>
+        <div className="generation-counter" aria-label={`3 ${t.count}`}>
+          <strong>{generation.session.count}/3</strong>
+          <span>{t.count}</span>
+          <small>{generation.session.remaining} {t.remaining}</small>
+        </div>
+      </div>
+
+      <fieldset className="strategy-grid" disabled={generation.busy || limitReached}>
+        <legend className="visually-hidden">{t.title}</legend>
+        {GENERATION_STRATEGIES.map((strategy) => {
+          const [label, description] = t.strategies[strategy];
+          return (
+            <button
+              key={strategy}
+              type="button"
+              className={generation.strategy === strategy ? "is-selected" : undefined}
+              aria-pressed={generation.strategy === strategy}
+              disabled={generation.busy || limitReached}
+              onClick={() => generation.onStrategyChange(strategy)}
+            >
+              <strong>{label}</strong>
+              <span>{description}</span>
+            </button>
+          );
+        })}
+      </fieldset>
+
+      <button
+        className="primary-button generation-action"
+        type="button"
+        disabled={generation.busy || limitReached}
+        onClick={generation.onGenerate}
+      >
+        {generation.busy ? t.generating : t.generate}
+      </button>
+      <p className="generation-privacy"><ShieldIcon aria-hidden="true" />{t.privacy}</p>
+      {limitReached ? <p className="generation-complete">{t.complete}</p> : null}
+      {generation.error ? <p className="generation-error" role="alert">{generation.error}</p> : null}
+
+      {generation.current ? (
+        <div className="generation-result">
+          <div className="generation-result-heading">
+            <p className="eyebrow">{t.current}</p>
+            <button className="secondary-button" type="button" onClick={generation.onDownload}>
+              {t.download}
+            </button>
+          </div>
+          <GeneratedCvPreview cv={generation.current} language={language} />
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function EvidenceDetails({
+  evidence,
+  language,
+}: {
+  evidence: readonly GenerationEvidence[];
+  language: DocumentLanguage;
+}) {
+  const t = copy[language].generation;
+  return (
+    <details className="generation-evidence">
+      <summary>{t.evidence} · {evidence.length}</summary>
+      {evidence.map((item, index) => (
+        <blockquote key={`${item.location}-${index}`}>
+          <p>“{item.quote}”</p>
+          <cite>{t.source} · {item.location}</cite>
+        </blockquote>
+      ))}
+    </details>
+  );
+}
+
+function GeneratedClaimList({
+  claims,
+  language,
+}: {
+  claims: readonly GeneratedClaim[];
+  language: DocumentLanguage;
+}) {
+  return (
+    <ul>
+      {claims.map((claim, index) => (
+        <li key={`${claim.text}-${index}`}>
+          <span>{claim.text}</span>
+          <EvidenceDetails evidence={claim.evidence} language={language} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function GeneratedCvPreview({
+  cv,
+  language,
+}: {
+  cv: GeneratedCv;
+  language: DocumentLanguage;
+}) {
+  const headingId = useId();
+  const headerEvidence = [
+    ...(cv.header.name?.evidence ?? []),
+    ...(cv.header.headline?.evidence ?? []),
+    ...cv.header.contact.flatMap((item) => item.evidence),
+  ];
+
+  return (
+    <article className="generated-cv" aria-labelledby={headingId} lang={cv.language}>
+      <header>
+        <h3 id={headingId}>{cv.header.name?.text ?? (cv.language === "es" ? "Currículum" : "Résumé")}</h3>
+        {cv.header.headline ? <p>{cv.header.headline.text}</p> : null}
+        {cv.header.contact.length > 0 ? (
+          <address>{cv.header.contact.map((item) => item.text).join(" · ")}</address>
+        ) : null}
+        {headerEvidence.length > 0 ? (
+          <EvidenceDetails evidence={headerEvidence} language={language} />
+        ) : null}
+      </header>
+
+      {cv.summary.length > 0 ? (
+        <section>
+          <h4>{cv.language === "es" ? "Perfil" : "Profile"}</h4>
+          <GeneratedClaimList claims={cv.summary} language={language} />
+        </section>
+      ) : null}
+
+      {cv.experience.length > 0 ? (
+        <section>
+          <h4>{cv.language === "es" ? "Experiencia" : "Experience"}</h4>
+          {cv.experience.map((entry, index) => (
+            <div className="generated-entry" key={`${entry.role.text}-${index}`}>
+              <h5>{entry.role.text}{entry.organization ? ` — ${entry.organization.text}` : ""}</h5>
+              <p>{[entry.dates?.text, entry.location?.text].filter(Boolean).join(" · ")}</p>
+              <EvidenceDetails
+                evidence={[
+                  ...entry.role.evidence,
+                  ...(entry.organization?.evidence ?? []),
+                  ...(entry.dates?.evidence ?? []),
+                  ...(entry.location?.evidence ?? []),
+                ]}
+                language={language}
+              />
+              <GeneratedClaimList claims={entry.bullets} language={language} />
+            </div>
+          ))}
+        </section>
+      ) : null}
+
+      {cv.projects.length > 0 ? (
+        <section>
+          <h4>{cv.language === "es" ? "Proyectos" : "Projects"}</h4>
+          {cv.projects.map((project, index) => (
+            <div className="generated-entry" key={`${project.name.text}-${index}`}>
+              <h5>{project.name.text}{project.context ? ` — ${project.context.text}` : ""}</h5>
+              {project.dates ? <p>{project.dates.text}</p> : null}
+              <EvidenceDetails
+                evidence={[
+                  ...project.name.evidence,
+                  ...(project.context?.evidence ?? []),
+                  ...(project.dates?.evidence ?? []),
+                ]}
+                language={language}
+              />
+              <GeneratedClaimList claims={project.bullets} language={language} />
+            </div>
+          ))}
+        </section>
+      ) : null}
+
+      {cv.education.length > 0 ? (
+        <section>
+          <h4>{cv.language === "es" ? "Educación" : "Education"}</h4>
+          {cv.education.map((entry, index) => (
+            <div className="generated-entry" key={`${entry.credential.text}-${index}`}>
+              <h5>{entry.credential.text}{entry.institution ? ` — ${entry.institution.text}` : ""}</h5>
+              {entry.dates ? <p>{entry.dates.text}</p> : null}
+              <EvidenceDetails
+                evidence={[
+                  ...entry.credential.evidence,
+                  ...(entry.institution?.evidence ?? []),
+                  ...(entry.dates?.evidence ?? []),
+                ]}
+                language={language}
+              />
+              <GeneratedClaimList claims={entry.details} language={language} />
+            </div>
+          ))}
+        </section>
+      ) : null}
+
+      {cv.skills.length > 0 ? (
+        <section>
+          <h4>{cv.language === "es" ? "Habilidades" : "Skills"}</h4>
+          <p>{cv.skills.map((skill) => skill.text).join(" · ")}</p>
+          <EvidenceDetails evidence={cv.skills.flatMap((skill) => skill.evidence)} language={language} />
+        </section>
+      ) : null}
+
+      {cv.additionalSections.map((section, index) => (
+        <section key={`${section.title}-${index}`}>
+          <h4>{section.title}</h4>
+          <GeneratedClaimList claims={section.items} language={language} />
+        </section>
+      ))}
+    </article>
   );
 }
 
